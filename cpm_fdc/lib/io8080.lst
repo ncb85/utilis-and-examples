@@ -1,0 +1,2597 @@
+                              1 ; Small C 8080
+                              2 ;	Coder (2.4,84/11/27)
+                              3 ;	Front End (2.7,84/11/28)
+                              4 ;	Front End for ASXXXX (2.8,13/01/20)
+                              5 		;program area SMALLC_GENERATED is RELOCATABLE
+                              6 		.module SMALLC_GENERATED
+                              7 		.list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
+                              8 		.nlist  (pag)
+                              9 		.area  SMALLC_GENERATED  (REL,CON,CSEG)
+                             10 ;/*      Basic CP/M file I/O:
+                             11 ;fopen,fclose,fgetc,fputc,feof
+                             12 ;Original:       Paul Tarvydas
+                             13 ;Fixed by:       Chris Lewis
+                             14 ;*/
+                             15 ;#include <stdio.h>
+                             16 ;#define stdin 0
+                             17 ;#define stdout 1
+                             18 ;#define stderr 2
+                             19 ;#define NULL 0
+                             20 ;#define EOF (-1)
+                             21 ;#define FILE char
+                             22 ;#define EOL 10
+                             23 ;#define EOL2 13
+                             24 ;#define CPMEOF 26
+                             25 ;#define CPMERR 255
+                             26 ;#define UNIT_OFFSET 3
+                             27 ;#define CPMCIN 1
+                             28 ;#define CPMCOUT 2
+                             29 ;#define READ_EOF 3
+                             30 ;#define SETDMA 26
+                             31 ;#define DEFAULT_DMA 128
+                             32 ;#define CPMREAD 20
+                             33 ;#define CPMWR 21
+                             34 ;#define WRITE 2
+                             35 ;#define READ 1
+                             36 ;#define FREE 0
+                             37 ;#define NBUFFS 4
+                             38 ;#define BUFSIZ 512
+                             39 ;#define FCBSIZ 33
+                             40 ;#define ALLBUFFS 2048
+                             41 ;#define ALLFCBS 132
+                             42 ;#define CPMERA 19
+                             43 ;#define CPMCREAT 22
+                             44 ;#define CPMOPEN 15
+                             45 ;#define NBLOCKS 4
+                             46 ;#define BLKSIZ 128
+                             47 ;#define BKSP 8
+                             48 ;#define CTRLU 21
+                             49 ;#define FWSP ' '
+                             50 ;#define CPMCLOSE 16
+                             51 ;char    buffs[ALLBUFFS],        /* disk buffers */
+                             52 ;fcbs[ALLFCBS];          /* fcbs for buffers */
+                             53 ;int     bptr[NBUFFS];           /* ptrs into buffers */
+                             54 ;int     modes[NBUFFS];          /* mode for each open file */
+                             55 ;int     eptr[NBUFFS];           /* buffers' ends */
+                             56 ;char eofstdin;  /* flag end of file on stdin */
+                             57 ;fgetc(unit) int unit;
+   0000                      58 fgetc:
+                             59 ;{
+                             60 ;    int c;
+   0000 C5            [12]   61 	push	b
+                             62 ;    while ((c = Xfgetc(unit)) == EOL2);
+   0001                      63 $2:
+   0001 21 00 00      [10]   64 	lxi 	h,#0
+   0004 39            [10]   65 	dad 	sp
+   0005 E5            [12]   66 	push	h
+   0006 21 06 00      [10]   67 	lxi 	h,#6
+   0009 39            [10]   68 	dad 	sp
+   000A CD 00 00      [18]   69 	call	ccgint
+   000D E5            [12]   70 	push	h
+   000E 3E 01         [ 7]   71 	mvi 	a,#1
+   0010 CD 34 00      [18]   72 	call	Xfgetc
+   0013 C1            [10]   73 	pop 	b
+   0014 D1            [10]   74 	pop 	d
+   0015 CD 00 00      [18]   75 	call	ccpint
+   0018 E5            [12]   76 	push	h
+   0019 21 0D 00      [10]   77 	lxi 	h,#13
+   001C D1            [10]   78 	pop 	d
+   001D CD 00 00      [18]   79 	call	cceq
+   0020 7C            [ 4]   80 	mov 	a,h
+   0021 B5            [ 4]   81 	ora 	l
+   0022 CA 28 00      [10]   82 	jz  	$3
+   0025 C3 01 00      [10]   83 	jmp 	$2
+   0028                      84 $3:
+                             85 ;    return c;
+   0028 21 00 00      [10]   86 	lxi 	h,#0
+   002B 39            [10]   87 	dad 	sp
+   002C CD 00 00      [18]   88 	call	ccgint
+   002F C3 32 00      [10]   89 	jmp 	$1
+                             90 ;}
+   0032                      91 $1:
+   0032 C1            [10]   92 	pop 	b
+   0033 C9            [10]   93 	ret
+                             94 ;Xfgetc(unit) int unit;
+   0034                      95 Xfgetc:
+                             96 ;{
+                             97 ;    int i;
+   0034 C5            [12]   98 	push	b
+                             99 ;    int c;
+   0035 C5            [12]  100 	push	b
+                            101 ;    char *buff;
+   0036 C5            [12]  102 	push	b
+                            103 ;    char *fcba;
+   0037 C5            [12]  104 	push	b
+                            105 ;    if ((unit == stdin) & !eofstdin) {
+   0038 21 0A 00      [10]  106 	lxi 	h,#10
+   003B 39            [10]  107 	dad 	sp
+   003C CD 00 00      [18]  108 	call	ccgint
+   003F E5            [12]  109 	push	h
+   0040 21 00 00      [10]  110 	lxi 	h,#0
+   0043 D1            [10]  111 	pop 	d
+   0044 CD 00 00      [18]  112 	call	cceq
+   0047 E5            [12]  113 	push	h
+   0048 3A 9C 08      [13]  114 	lda	eofstdin
+   004B CD 00 00      [18]  115 	call	ccsxt
+   004E CD 00 00      [18]  116 	call	cclneg
+   0051 D1            [10]  117 	pop 	d
+   0052 CD 00 00      [18]  118 	call	ccand
+   0055 7C            [ 4]  119 	mov 	a,h
+   0056 B5            [ 4]  120 	ora 	l
+   0057 CA F3 00      [10]  121 	jz  	$5
+                            122 ;        c = bdos1(CPMCIN, 0);
+   005A 21 04 00      [10]  123 	lxi 	h,#4
+   005D 39            [10]  124 	dad 	sp
+   005E E5            [12]  125 	push	h
+   005F 21 01 00      [10]  126 	lxi 	h,#1
+   0062 E5            [12]  127 	push	h
+   0063 21 00 00      [10]  128 	lxi 	h,#0
+   0066 E5            [12]  129 	push	h
+   0067 3E 02         [ 7]  130 	mvi 	a,#2
+   0069 CD 00 00      [18]  131 	call	bdos1
+   006C C1            [10]  132 	pop 	b
+   006D C1            [10]  133 	pop 	b
+   006E D1            [10]  134 	pop 	d
+   006F CD 00 00      [18]  135 	call	ccpint
+                            136 ;        if (c == 4) {
+   0072 21 04 00      [10]  137 	lxi 	h,#4
+   0075 39            [10]  138 	dad 	sp
+   0076 CD 00 00      [18]  139 	call	ccgint
+   0079 E5            [12]  140 	push	h
+   007A 21 04 00      [10]  141 	lxi 	h,#4
+   007D D1            [10]  142 	pop 	d
+   007E CD 00 00      [18]  143 	call	cceq
+   0081 7C            [ 4]  144 	mov 	a,h
+   0082 B5            [ 4]  145 	ora 	l
+   0083 CA 99 00      [10]  146 	jz  	$6
+                            147 ;            eofstdin = 1;
+   0086 21 01 00      [10]  148 	lxi 	h,#1
+   0089 7D            [ 4]  149 	mov 	a,l
+   008A 32 9C 08      [13]  150 	sta 	eofstdin
+                            151 ;            return (EOF);
+   008D 21 01 00      [10]  152 	lxi 	h,#1
+   0090 CD 00 00      [18]  153 	call	ccneg
+   0093 C3 1D 03      [10]  154 	jmp 	$4
+                            155 ;        }
+                            156 ;        else if (c == 3)
+   0096 C3 F3 00      [10]  157 	jmp 	$7
+   0099                     158 $6:
+   0099 21 04 00      [10]  159 	lxi 	h,#4
+   009C 39            [10]  160 	dad 	sp
+   009D CD 00 00      [18]  161 	call	ccgint
+   00A0 E5            [12]  162 	push	h
+   00A1 21 03 00      [10]  163 	lxi 	h,#3
+   00A4 D1            [10]  164 	pop 	d
+   00A5 CD 00 00      [18]  165 	call	cceq
+   00A8 7C            [ 4]  166 	mov 	a,h
+   00A9 B5            [ 4]  167 	ora 	l
+   00AA CA BA 00      [10]  168 	jz  	$8
+                            169 ;            exit (1);
+   00AD 21 01 00      [10]  170 	lxi 	h,#1
+   00B0 E5            [12]  171 	push	h
+   00B1 3E 01         [ 7]  172 	mvi 	a,#1
+   00B3 CD 00 00      [18]  173 	call	exit
+   00B6 C1            [10]  174 	pop 	b
+                            175 ;        else {
+   00B7 C3 F3 00      [10]  176 	jmp 	$9
+   00BA                     177 $8:
+                            178 ;            if (c == EOL2) {
+   00BA 21 04 00      [10]  179 	lxi 	h,#4
+   00BD 39            [10]  180 	dad 	sp
+   00BE CD 00 00      [18]  181 	call	ccgint
+   00C1 E5            [12]  182 	push	h
+   00C2 21 0D 00      [10]  183 	lxi 	h,#13
+   00C5 D1            [10]  184 	pop 	d
+   00C6 CD 00 00      [18]  185 	call	cceq
+   00C9 7C            [ 4]  186 	mov 	a,h
+   00CA B5            [ 4]  187 	ora 	l
+   00CB CA E9 00      [10]  188 	jz  	$10
+                            189 ;                c = EOL;
+   00CE 21 04 00      [10]  190 	lxi 	h,#4
+   00D1 39            [10]  191 	dad 	sp
+   00D2 E5            [12]  192 	push	h
+   00D3 21 0A 00      [10]  193 	lxi 	h,#10
+   00D6 D1            [10]  194 	pop 	d
+   00D7 CD 00 00      [18]  195 	call	ccpint
+                            196 ;                bdos (CPMCOUT, EOL);
+   00DA 21 02 00      [10]  197 	lxi 	h,#2
+   00DD E5            [12]  198 	push	h
+   00DE 21 0A 00      [10]  199 	lxi 	h,#10
+   00E1 E5            [12]  200 	push	h
+   00E2 3E 02         [ 7]  201 	mvi 	a,#2
+   00E4 CD 00 00      [18]  202 	call	bdos
+   00E7 C1            [10]  203 	pop 	b
+   00E8 C1            [10]  204 	pop 	b
+                            205 ;            }
+                            206 ;            return (c);
+   00E9                     207 $10:
+   00E9 21 04 00      [10]  208 	lxi 	h,#4
+   00EC 39            [10]  209 	dad 	sp
+   00ED CD 00 00      [18]  210 	call	ccgint
+   00F0 C3 1D 03      [10]  211 	jmp 	$4
+                            212 ;        }
+   00F3                     213 $9:
+   00F3                     214 $7:
+                            215 ;    }
+                            216 ;    if (modes[unit = unit - UNIT_OFFSET] == READ) {
+   00F3                     217 $5:
+   00F3 21 8C 08      [10]  218 	lxi 	h,modes
+   00F6 E5            [12]  219 	push	h
+   00F7 21 0C 00      [10]  220 	lxi 	h,#12
+   00FA 39            [10]  221 	dad 	sp
+   00FB E5            [12]  222 	push	h
+   00FC 21 0E 00      [10]  223 	lxi 	h,#14
+   00FF 39            [10]  224 	dad 	sp
+   0100 CD 00 00      [18]  225 	call	ccgint
+   0103 E5            [12]  226 	push	h
+   0104 21 03 00      [10]  227 	lxi 	h,#3
+   0107 D1            [10]  228 	pop 	d
+   0108 CD 00 00      [18]  229 	call	ccsub
+   010B D1            [10]  230 	pop 	d
+   010C CD 00 00      [18]  231 	call	ccpint
+   010F 29            [10]  232 	dad 	h
+   0110 D1            [10]  233 	pop 	d
+   0111 19            [10]  234 	dad 	d
+   0112 CD 00 00      [18]  235 	call	ccgint
+   0115 E5            [12]  236 	push	h
+   0116 21 01 00      [10]  237 	lxi 	h,#1
+   0119 D1            [10]  238 	pop 	d
+   011A CD 00 00      [18]  239 	call	cceq
+   011D 7C            [ 4]  240 	mov 	a,h
+   011E B5            [ 4]  241 	ora 	l
+   011F CA 14 03      [10]  242 	jz  	$11
+                            243 ;        if (bptr[unit] >= eptr[unit]) {
+   0122 21 84 08      [10]  244 	lxi 	h,bptr
+   0125 E5            [12]  245 	push	h
+   0126 21 0C 00      [10]  246 	lxi 	h,#12
+   0129 39            [10]  247 	dad 	sp
+   012A CD 00 00      [18]  248 	call	ccgint
+   012D 29            [10]  249 	dad 	h
+   012E D1            [10]  250 	pop 	d
+   012F 19            [10]  251 	dad 	d
+   0130 CD 00 00      [18]  252 	call	ccgint
+   0133 E5            [12]  253 	push	h
+   0134 21 94 08      [10]  254 	lxi 	h,eptr
+   0137 E5            [12]  255 	push	h
+   0138 21 0E 00      [10]  256 	lxi 	h,#14
+   013B 39            [10]  257 	dad 	sp
+   013C CD 00 00      [18]  258 	call	ccgint
+   013F 29            [10]  259 	dad 	h
+   0140 D1            [10]  260 	pop 	d
+   0141 19            [10]  261 	dad 	d
+   0142 CD 00 00      [18]  262 	call	ccgint
+   0145 D1            [10]  263 	pop 	d
+   0146 CD 00 00      [18]  264 	call	ccge
+   0149 7C            [ 4]  265 	mov 	a,h
+   014A B5            [ 4]  266 	ora 	l
+   014B CA A5 02      [10]  267 	jz  	$12
+                            268 ;            fcba = fcbaddr(unit);
+   014E 21 00 00      [10]  269 	lxi 	h,#0
+   0151 39            [10]  270 	dad 	sp
+   0152 E5            [12]  271 	push	h
+   0153 21 0C 00      [10]  272 	lxi 	h,#12
+   0156 39            [10]  273 	dad 	sp
+   0157 CD 00 00      [18]  274 	call	ccgint
+   015A E5            [12]  275 	push	h
+   015B 3E 01         [ 7]  276 	mvi 	a,#1
+   015D CD 69 0C      [18]  277 	call	fcbaddr
+   0160 C1            [10]  278 	pop 	b
+   0161 D1            [10]  279 	pop 	d
+   0162 CD 00 00      [18]  280 	call	ccpint
+                            281 ;            /* fill da buffer again */
+                            282 ;            i = 0;  /* block counter */
+   0165 21 06 00      [10]  283 	lxi 	h,#6
+   0168 39            [10]  284 	dad 	sp
+   0169 E5            [12]  285 	push	h
+   016A 21 00 00      [10]  286 	lxi 	h,#0
+   016D D1            [10]  287 	pop 	d
+   016E CD 00 00      [18]  288 	call	ccpint
+                            289 ;            buff = buffaddr(unit); /* dma ptr */
+   0171 21 02 00      [10]  290 	lxi 	h,#2
+   0174 39            [10]  291 	dad 	sp
+   0175 E5            [12]  292 	push	h
+   0176 21 0C 00      [10]  293 	lxi 	h,#12
+   0179 39            [10]  294 	dad 	sp
+   017A CD 00 00      [18]  295 	call	ccgint
+   017D E5            [12]  296 	push	h
+   017E 3E 01         [ 7]  297 	mvi 	a,#1
+   0180 CD 82 0C      [18]  298 	call	buffaddr
+   0183 C1            [10]  299 	pop 	b
+   0184 D1            [10]  300 	pop 	d
+   0185 CD 00 00      [18]  301 	call	ccpint
+                            302 ;            /* if buffer wasn't totally
+                            303 ;                    filled last time, we already
+                            304 ;                    eof */
+                            305 ;            if (eptr[unit] == buffaddr(unit + 1))
+   0188 21 94 08      [10]  306 	lxi 	h,eptr
+   018B E5            [12]  307 	push	h
+   018C 21 0C 00      [10]  308 	lxi 	h,#12
+   018F 39            [10]  309 	dad 	sp
+   0190 CD 00 00      [18]  310 	call	ccgint
+   0193 29            [10]  311 	dad 	h
+   0194 D1            [10]  312 	pop 	d
+   0195 19            [10]  313 	dad 	d
+   0196 CD 00 00      [18]  314 	call	ccgint
+   0199 E5            [12]  315 	push	h
+   019A 21 0C 00      [10]  316 	lxi 	h,#12
+   019D 39            [10]  317 	dad 	sp
+   019E CD 00 00      [18]  318 	call	ccgint
+   01A1 E5            [12]  319 	push	h
+   01A2 21 01 00      [10]  320 	lxi 	h,#1
+   01A5 D1            [10]  321 	pop 	d
+   01A6 19            [10]  322 	dad 	d
+   01A7 E5            [12]  323 	push	h
+   01A8 3E 01         [ 7]  324 	mvi 	a,#1
+   01AA CD 82 0C      [18]  325 	call	buffaddr
+   01AD C1            [10]  326 	pop 	b
+   01AE D1            [10]  327 	pop 	d
+   01AF CD 00 00      [18]  328 	call	cceq
+   01B2 7C            [ 4]  329 	mov 	a,h
+   01B3 B5            [ 4]  330 	ora 	l
+   01B4 CA 1D 02      [10]  331 	jz  	$13
+                            332 ;            do {
+   01B7                     333 $14:
+                            334 ;                bdos(SETDMA, buff);
+   01B7 21 1A 00      [10]  335 	lxi 	h,#26
+   01BA E5            [12]  336 	push	h
+   01BB 21 04 00      [10]  337 	lxi 	h,#4
+   01BE 39            [10]  338 	dad 	sp
+   01BF CD 00 00      [18]  339 	call	ccgint
+   01C2 E5            [12]  340 	push	h
+   01C3 3E 02         [ 7]  341 	mvi 	a,#2
+   01C5 CD 00 00      [18]  342 	call	bdos
+   01C8 C1            [10]  343 	pop 	b
+   01C9 C1            [10]  344 	pop 	b
+                            345 ;                if (0!=bdos1(CPMREAD, fcba))
+   01CA 21 00 00      [10]  346 	lxi 	h,#0
+   01CD E5            [12]  347 	push	h
+   01CE 21 14 00      [10]  348 	lxi 	h,#20
+   01D1 E5            [12]  349 	push	h
+   01D2 21 04 00      [10]  350 	lxi 	h,#4
+   01D5 39            [10]  351 	dad 	sp
+   01D6 CD 00 00      [18]  352 	call	ccgint
+   01D9 E5            [12]  353 	push	h
+   01DA 3E 02         [ 7]  354 	mvi 	a,#2
+   01DC CD 00 00      [18]  355 	call	bdos1
+   01DF C1            [10]  356 	pop 	b
+   01E0 C1            [10]  357 	pop 	b
+   01E1 D1            [10]  358 	pop 	d
+   01E2 CD 00 00      [18]  359 	call	ccne
+   01E5 7C            [ 4]  360 	mov 	a,h
+   01E6 B5            [ 4]  361 	ora 	l
+   01E7 CA ED 01      [10]  362 	jz  	$17
+                            363 ;                    break;
+   01EA C3 1D 02      [10]  364 	jmp 	$16
+                            365 ;                buff = buff + BLKSIZ;
+   01ED                     366 $17:
+   01ED 21 02 00      [10]  367 	lxi 	h,#2
+   01F0 39            [10]  368 	dad 	sp
+   01F1 E5            [12]  369 	push	h
+   01F2 21 04 00      [10]  370 	lxi 	h,#4
+   01F5 39            [10]  371 	dad 	sp
+   01F6 CD 00 00      [18]  372 	call	ccgint
+   01F9 E5            [12]  373 	push	h
+   01FA 21 80 00      [10]  374 	lxi 	h,#128
+   01FD D1            [10]  375 	pop 	d
+   01FE 19            [10]  376 	dad 	d
+   01FF D1            [10]  377 	pop 	d
+   0200 CD 00 00      [18]  378 	call	ccpint
+                            379 ;            }
+                            380 ;            while (++i<NBLOCKS);
+   0203                     381 $15:
+   0203 21 06 00      [10]  382 	lxi 	h,#6
+   0206 39            [10]  383 	dad 	sp
+   0207 E5            [12]  384 	push	h
+   0208 CD 00 00      [18]  385 	call	ccgint
+   020B 23            [ 6]  386 	inx 	h
+   020C D1            [10]  387 	pop 	d
+   020D CD 00 00      [18]  388 	call	ccpint
+   0210 E5            [12]  389 	push	h
+   0211 21 04 00      [10]  390 	lxi 	h,#4
+   0214 D1            [10]  391 	pop 	d
+   0215 CD 00 00      [18]  392 	call	cclt
+   0218 7C            [ 4]  393 	mov 	a,h
+   0219 B5            [ 4]  394 	ora 	l
+   021A C2 B7 01      [10]  395 	jnz 	$14
+   021D                     396 $16:
+                            397 ;            bdos(SETDMA, DEFAULT_DMA);
+   021D                     398 $13:
+   021D 21 1A 00      [10]  399 	lxi 	h,#26
+   0220 E5            [12]  400 	push	h
+   0221 21 80 00      [10]  401 	lxi 	h,#128
+   0224 E5            [12]  402 	push	h
+   0225 3E 02         [ 7]  403 	mvi 	a,#2
+   0227 CD 00 00      [18]  404 	call	bdos
+   022A C1            [10]  405 	pop 	b
+   022B C1            [10]  406 	pop 	b
+                            407 ;            /* if i still 0, no blocks read =>eof*/
+                            408 ;            if (i==0) {
+   022C 21 06 00      [10]  409 	lxi 	h,#6
+   022F 39            [10]  410 	dad 	sp
+   0230 CD 00 00      [18]  411 	call	ccgint
+   0233 E5            [12]  412 	push	h
+   0234 21 00 00      [10]  413 	lxi 	h,#0
+   0237 D1            [10]  414 	pop 	d
+   0238 CD 00 00      [18]  415 	call	cceq
+   023B 7C            [ 4]  416 	mov 	a,h
+   023C B5            [ 4]  417 	ora 	l
+   023D CA 5F 02      [10]  418 	jz  	$18
+                            419 ;                modes[unit] = READ_EOF;
+   0240 21 8C 08      [10]  420 	lxi 	h,modes
+   0243 E5            [12]  421 	push	h
+   0244 21 0C 00      [10]  422 	lxi 	h,#12
+   0247 39            [10]  423 	dad 	sp
+   0248 CD 00 00      [18]  424 	call	ccgint
+   024B 29            [10]  425 	dad 	h
+   024C D1            [10]  426 	pop 	d
+   024D 19            [10]  427 	dad 	d
+   024E E5            [12]  428 	push	h
+   024F 21 03 00      [10]  429 	lxi 	h,#3
+   0252 D1            [10]  430 	pop 	d
+   0253 CD 00 00      [18]  431 	call	ccpint
+                            432 ;                return EOF;
+   0256 21 01 00      [10]  433 	lxi 	h,#1
+   0259 CD 00 00      [18]  434 	call	ccneg
+   025C C3 1D 03      [10]  435 	jmp 	$4
+                            436 ;            }
+                            437 ;            /* o.k. set start & end ptrs */
+                            438 ;            eptr[unit] =
+   025F                     439 $18:
+   025F 21 94 08      [10]  440 	lxi 	h,eptr
+   0262 E5            [12]  441 	push	h
+   0263 21 0C 00      [10]  442 	lxi 	h,#12
+   0266 39            [10]  443 	dad 	sp
+   0267 CD 00 00      [18]  444 	call	ccgint
+   026A 29            [10]  445 	dad 	h
+   026B D1            [10]  446 	pop 	d
+   026C 19            [10]  447 	dad 	d
+   026D E5            [12]  448 	push	h
+                            449 ;                (bptr[unit]=buffaddr(unit))
+   026E 21 84 08      [10]  450 	lxi 	h,bptr
+   0271 E5            [12]  451 	push	h
+   0272 21 0E 00      [10]  452 	lxi 	h,#14
+   0275 39            [10]  453 	dad 	sp
+   0276 CD 00 00      [18]  454 	call	ccgint
+   0279 29            [10]  455 	dad 	h
+   027A D1            [10]  456 	pop 	d
+   027B 19            [10]  457 	dad 	d
+   027C E5            [12]  458 	push	h
+   027D 21 0E 00      [10]  459 	lxi 	h,#14
+   0280 39            [10]  460 	dad 	sp
+   0281 CD 00 00      [18]  461 	call	ccgint
+   0284 E5            [12]  462 	push	h
+   0285 3E 01         [ 7]  463 	mvi 	a,#1
+   0287 CD 82 0C      [18]  464 	call	buffaddr
+   028A C1            [10]  465 	pop 	b
+   028B D1            [10]  466 	pop 	d
+   028C CD 00 00      [18]  467 	call	ccpint
+                            468 ;                + (i * BLKSIZ);
+   028F E5            [12]  469 	push	h
+   0290 21 0A 00      [10]  470 	lxi 	h,#10
+   0293 39            [10]  471 	dad 	sp
+   0294 CD 00 00      [18]  472 	call	ccgint
+   0297 E5            [12]  473 	push	h
+   0298 21 80 00      [10]  474 	lxi 	h,#128
+   029B D1            [10]  475 	pop 	d
+   029C CD 00 00      [18]  476 	call	ccmul
+   029F D1            [10]  477 	pop 	d
+   02A0 19            [10]  478 	dad 	d
+   02A1 D1            [10]  479 	pop 	d
+   02A2 CD 00 00      [18]  480 	call	ccpint
+                            481 ;        }
+                            482 ;        c = (*(bptr[unit]++)) & 0xff;
+   02A5                     483 $12:
+   02A5 21 04 00      [10]  484 	lxi 	h,#4
+   02A8 39            [10]  485 	dad 	sp
+   02A9 E5            [12]  486 	push	h
+   02AA 21 84 08      [10]  487 	lxi 	h,bptr
+   02AD E5            [12]  488 	push	h
+   02AE 21 0E 00      [10]  489 	lxi 	h,#14
+   02B1 39            [10]  490 	dad 	sp
+   02B2 CD 00 00      [18]  491 	call	ccgint
+   02B5 29            [10]  492 	dad 	h
+   02B6 D1            [10]  493 	pop 	d
+   02B7 19            [10]  494 	dad 	d
+   02B8 E5            [12]  495 	push	h
+   02B9 CD 00 00      [18]  496 	call	ccgint
+   02BC 23            [ 6]  497 	inx 	h
+   02BD D1            [10]  498 	pop 	d
+   02BE CD 00 00      [18]  499 	call	ccpint
+   02C1 2B            [ 6]  500 	dcx 	h
+   02C2 CD 00 00      [18]  501 	call	ccgint
+   02C5 E5            [12]  502 	push	h
+   02C6 21 FF 00      [10]  503 	lxi 	h,#255
+   02C9 D1            [10]  504 	pop 	d
+   02CA CD 00 00      [18]  505 	call	ccand
+   02CD D1            [10]  506 	pop 	d
+   02CE CD 00 00      [18]  507 	call	ccpint
+                            508 ;        if (c == CPMEOF) {
+   02D1 21 04 00      [10]  509 	lxi 	h,#4
+   02D4 39            [10]  510 	dad 	sp
+   02D5 CD 00 00      [18]  511 	call	ccgint
+   02D8 E5            [12]  512 	push	h
+   02D9 21 1A 00      [10]  513 	lxi 	h,#26
+   02DC D1            [10]  514 	pop 	d
+   02DD CD 00 00      [18]  515 	call	cceq
+   02E0 7C            [ 4]  516 	mov 	a,h
+   02E1 B5            [ 4]  517 	ora 	l
+   02E2 CA 0A 03      [10]  518 	jz  	$19
+                            519 ;            c = EOF;
+   02E5 21 04 00      [10]  520 	lxi 	h,#4
+   02E8 39            [10]  521 	dad 	sp
+   02E9 E5            [12]  522 	push	h
+   02EA 21 01 00      [10]  523 	lxi 	h,#1
+   02ED CD 00 00      [18]  524 	call	ccneg
+   02F0 D1            [10]  525 	pop 	d
+   02F1 CD 00 00      [18]  526 	call	ccpint
+                            527 ;            modes[unit] = READ_EOF;
+   02F4 21 8C 08      [10]  528 	lxi 	h,modes
+   02F7 E5            [12]  529 	push	h
+   02F8 21 0C 00      [10]  530 	lxi 	h,#12
+   02FB 39            [10]  531 	dad 	sp
+   02FC CD 00 00      [18]  532 	call	ccgint
+   02FF 29            [10]  533 	dad 	h
+   0300 D1            [10]  534 	pop 	d
+   0301 19            [10]  535 	dad 	d
+   0302 E5            [12]  536 	push	h
+   0303 21 03 00      [10]  537 	lxi 	h,#3
+   0306 D1            [10]  538 	pop 	d
+   0307 CD 00 00      [18]  539 	call	ccpint
+                            540 ;        }
+                            541 ;        return c;
+   030A                     542 $19:
+   030A 21 04 00      [10]  543 	lxi 	h,#4
+   030D 39            [10]  544 	dad 	sp
+   030E CD 00 00      [18]  545 	call	ccgint
+   0311 C3 1D 03      [10]  546 	jmp 	$4
+                            547 ;    }
+                            548 ;    return EOF;
+   0314                     549 $11:
+   0314 21 01 00      [10]  550 	lxi 	h,#1
+   0317 CD 00 00      [18]  551 	call	ccneg
+   031A C3 1D 03      [10]  552 	jmp 	$4
+                            553 ;}
+   031D                     554 $4:
+   031D EB            [ 4]  555 	xchg
+   031E 21 08 00      [10]  556 	lxi 	h,#8
+   0321 39            [10]  557 	dad 	sp
+   0322 F9            [ 6]  558 	sphl
+   0323 EB            [ 4]  559 	xchg
+   0324 C9            [10]  560 	ret
+                            561 ;fclose(unit) int unit;
+   0325                     562 fclose:
+                            563 ;{
+                            564 ;    int i;
+   0325 C5            [12]  565 	push	b
+                            566 ;    if ((unit==stdin)|(unit==stdout)|(unit==stderr))
+   0326 21 04 00      [10]  567 	lxi 	h,#4
+   0329 39            [10]  568 	dad 	sp
+   032A CD 00 00      [18]  569 	call	ccgint
+   032D E5            [12]  570 	push	h
+   032E 21 00 00      [10]  571 	lxi 	h,#0
+   0331 D1            [10]  572 	pop 	d
+   0332 CD 00 00      [18]  573 	call	cceq
+   0335 E5            [12]  574 	push	h
+   0336 21 06 00      [10]  575 	lxi 	h,#6
+   0339 39            [10]  576 	dad 	sp
+   033A CD 00 00      [18]  577 	call	ccgint
+   033D E5            [12]  578 	push	h
+   033E 21 01 00      [10]  579 	lxi 	h,#1
+   0341 D1            [10]  580 	pop 	d
+   0342 CD 00 00      [18]  581 	call	cceq
+   0345 D1            [10]  582 	pop 	d
+   0346 CD 00 00      [18]  583 	call	ccor
+   0349 E5            [12]  584 	push	h
+   034A 21 06 00      [10]  585 	lxi 	h,#6
+   034D 39            [10]  586 	dad 	sp
+   034E CD 00 00      [18]  587 	call	ccgint
+   0351 E5            [12]  588 	push	h
+   0352 21 02 00      [10]  589 	lxi 	h,#2
+   0355 D1            [10]  590 	pop 	d
+   0356 CD 00 00      [18]  591 	call	cceq
+   0359 D1            [10]  592 	pop 	d
+   035A CD 00 00      [18]  593 	call	ccor
+   035D 7C            [ 4]  594 	mov 	a,h
+   035E B5            [ 4]  595 	ora 	l
+   035F CA 68 03      [10]  596 	jz  	$21
+                            597 ;        return NULL;
+   0362 21 00 00      [10]  598 	lxi 	h,#0
+   0365 C3 05 04      [10]  599 	jmp 	$20
+                            600 ;    if (modes[unit = unit - UNIT_OFFSET] != FREE) {
+   0368                     601 $21:
+   0368 21 8C 08      [10]  602 	lxi 	h,modes
+   036B E5            [12]  603 	push	h
+   036C 21 06 00      [10]  604 	lxi 	h,#6
+   036F 39            [10]  605 	dad 	sp
+   0370 E5            [12]  606 	push	h
+   0371 21 08 00      [10]  607 	lxi 	h,#8
+   0374 39            [10]  608 	dad 	sp
+   0375 CD 00 00      [18]  609 	call	ccgint
+   0378 E5            [12]  610 	push	h
+   0379 21 03 00      [10]  611 	lxi 	h,#3
+   037C D1            [10]  612 	pop 	d
+   037D CD 00 00      [18]  613 	call	ccsub
+   0380 D1            [10]  614 	pop 	d
+   0381 CD 00 00      [18]  615 	call	ccpint
+   0384 29            [10]  616 	dad 	h
+   0385 D1            [10]  617 	pop 	d
+   0386 19            [10]  618 	dad 	d
+   0387 CD 00 00      [18]  619 	call	ccgint
+   038A E5            [12]  620 	push	h
+   038B 21 00 00      [10]  621 	lxi 	h,#0
+   038E D1            [10]  622 	pop 	d
+   038F CD 00 00      [18]  623 	call	ccne
+   0392 7C            [ 4]  624 	mov 	a,h
+   0393 B5            [ 4]  625 	ora 	l
+   0394 CA FC 03      [10]  626 	jz  	$22
+                            627 ;        if (modes[unit] == WRITE)
+   0397 21 8C 08      [10]  628 	lxi 	h,modes
+   039A E5            [12]  629 	push	h
+   039B 21 06 00      [10]  630 	lxi 	h,#6
+   039E 39            [10]  631 	dad 	sp
+   039F CD 00 00      [18]  632 	call	ccgint
+   03A2 29            [10]  633 	dad 	h
+   03A3 D1            [10]  634 	pop 	d
+   03A4 19            [10]  635 	dad 	d
+   03A5 CD 00 00      [18]  636 	call	ccgint
+   03A8 E5            [12]  637 	push	h
+   03A9 21 02 00      [10]  638 	lxi 	h,#2
+   03AC D1            [10]  639 	pop 	d
+   03AD CD 00 00      [18]  640 	call	cceq
+   03B0 7C            [ 4]  641 	mov 	a,h
+   03B1 B5            [ 4]  642 	ora 	l
+   03B2 CA C9 03      [10]  643 	jz  	$23
+                            644 ;            fflush(unit + UNIT_OFFSET);
+   03B5 21 04 00      [10]  645 	lxi 	h,#4
+   03B8 39            [10]  646 	dad 	sp
+   03B9 CD 00 00      [18]  647 	call	ccgint
+   03BC E5            [12]  648 	push	h
+   03BD 21 03 00      [10]  649 	lxi 	h,#3
+   03C0 D1            [10]  650 	pop 	d
+   03C1 19            [10]  651 	dad 	d
+   03C2 E5            [12]  652 	push	h
+   03C3 3E 01         [ 7]  653 	mvi 	a,#1
+   03C5 CD 07 04      [18]  654 	call	fflush
+   03C8 C1            [10]  655 	pop 	b
+                            656 ;        modes[unit] = FREE;
+   03C9                     657 $23:
+   03C9 21 8C 08      [10]  658 	lxi 	h,modes
+   03CC E5            [12]  659 	push	h
+   03CD 21 06 00      [10]  660 	lxi 	h,#6
+   03D0 39            [10]  661 	dad 	sp
+   03D1 CD 00 00      [18]  662 	call	ccgint
+   03D4 29            [10]  663 	dad 	h
+   03D5 D1            [10]  664 	pop 	d
+   03D6 19            [10]  665 	dad 	d
+   03D7 E5            [12]  666 	push	h
+   03D8 21 00 00      [10]  667 	lxi 	h,#0
+   03DB D1            [10]  668 	pop 	d
+   03DC CD 00 00      [18]  669 	call	ccpint
+                            670 ;        return bdos1(CPMCLOSE, fcbaddr(unit));
+   03DF 21 10 00      [10]  671 	lxi 	h,#16
+   03E2 E5            [12]  672 	push	h
+   03E3 21 06 00      [10]  673 	lxi 	h,#6
+   03E6 39            [10]  674 	dad 	sp
+   03E7 CD 00 00      [18]  675 	call	ccgint
+   03EA E5            [12]  676 	push	h
+   03EB 3E 01         [ 7]  677 	mvi 	a,#1
+   03ED CD 69 0C      [18]  678 	call	fcbaddr
+   03F0 C1            [10]  679 	pop 	b
+   03F1 E5            [12]  680 	push	h
+   03F2 3E 02         [ 7]  681 	mvi 	a,#2
+   03F4 CD 00 00      [18]  682 	call	bdos1
+   03F7 C1            [10]  683 	pop 	b
+   03F8 C1            [10]  684 	pop 	b
+   03F9 C3 05 04      [10]  685 	jmp 	$20
+                            686 ;    }
+                            687 ;    return EOF;
+   03FC                     688 $22:
+   03FC 21 01 00      [10]  689 	lxi 	h,#1
+   03FF CD 00 00      [18]  690 	call	ccneg
+   0402 C3 05 04      [10]  691 	jmp 	$20
+                            692 ;}
+   0405                     693 $20:
+   0405 C1            [10]  694 	pop 	b
+   0406 C9            [10]  695 	ret
+                            696 ;fflush(unit) int unit;
+   0407                     697 fflush:
+                            698 ;{
+                            699 ;    char *buffa;
+   0407 C5            [12]  700 	push	b
+                            701 ;    char *fcba;
+   0408 C5            [12]  702 	push	b
+                            703 ;    if ((unit!=stdin)|(unit!=stdout)|(unit!=stderr)) {
+   0409 21 06 00      [10]  704 	lxi 	h,#6
+   040C 39            [10]  705 	dad 	sp
+   040D CD 00 00      [18]  706 	call	ccgint
+   0410 E5            [12]  707 	push	h
+   0411 21 00 00      [10]  708 	lxi 	h,#0
+   0414 D1            [10]  709 	pop 	d
+   0415 CD 00 00      [18]  710 	call	ccne
+   0418 E5            [12]  711 	push	h
+   0419 21 08 00      [10]  712 	lxi 	h,#8
+   041C 39            [10]  713 	dad 	sp
+   041D CD 00 00      [18]  714 	call	ccgint
+   0420 E5            [12]  715 	push	h
+   0421 21 01 00      [10]  716 	lxi 	h,#1
+   0424 D1            [10]  717 	pop 	d
+   0425 CD 00 00      [18]  718 	call	ccne
+   0428 D1            [10]  719 	pop 	d
+   0429 CD 00 00      [18]  720 	call	ccor
+   042C E5            [12]  721 	push	h
+   042D 21 08 00      [10]  722 	lxi 	h,#8
+   0430 39            [10]  723 	dad 	sp
+   0431 CD 00 00      [18]  724 	call	ccgint
+   0434 E5            [12]  725 	push	h
+   0435 21 02 00      [10]  726 	lxi 	h,#2
+   0438 D1            [10]  727 	pop 	d
+   0439 CD 00 00      [18]  728 	call	ccne
+   043C D1            [10]  729 	pop 	d
+   043D CD 00 00      [18]  730 	call	ccor
+   0440 7C            [ 4]  731 	mov 	a,h
+   0441 B5            [ 4]  732 	ora 	l
+   0442 CA 2E 05      [10]  733 	jz  	$25
+                            734 ;        /* put an eof at end of file */
+                            735 ;        fputc(CPMEOF, unit);
+   0445 21 1A 00      [10]  736 	lxi 	h,#26
+   0448 E5            [12]  737 	push	h
+   0449 21 08 00      [10]  738 	lxi 	h,#8
+   044C 39            [10]  739 	dad 	sp
+   044D CD 00 00      [18]  740 	call	ccgint
+   0450 E5            [12]  741 	push	h
+   0451 3E 02         [ 7]  742 	mvi 	a,#2
+   0453 CD 37 05      [18]  743 	call	fputc
+   0456 C1            [10]  744 	pop 	b
+   0457 C1            [10]  745 	pop 	b
+                            746 ;        if (bptr[unit = unit - UNIT_OFFSET] !=
+   0458 21 84 08      [10]  747 	lxi 	h,bptr
+   045B E5            [12]  748 	push	h
+   045C 21 08 00      [10]  749 	lxi 	h,#8
+   045F 39            [10]  750 	dad 	sp
+   0460 E5            [12]  751 	push	h
+   0461 21 0A 00      [10]  752 	lxi 	h,#10
+   0464 39            [10]  753 	dad 	sp
+   0465 CD 00 00      [18]  754 	call	ccgint
+   0468 E5            [12]  755 	push	h
+   0469 21 03 00      [10]  756 	lxi 	h,#3
+   046C D1            [10]  757 	pop 	d
+   046D CD 00 00      [18]  758 	call	ccsub
+   0470 D1            [10]  759 	pop 	d
+   0471 CD 00 00      [18]  760 	call	ccpint
+   0474 29            [10]  761 	dad 	h
+   0475 D1            [10]  762 	pop 	d
+   0476 19            [10]  763 	dad 	d
+   0477 CD 00 00      [18]  764 	call	ccgint
+   047A E5            [12]  765 	push	h
+                            766 ;            (buffa = buffaddr(unit))) {
+   047B 21 04 00      [10]  767 	lxi 	h,#4
+   047E 39            [10]  768 	dad 	sp
+   047F E5            [12]  769 	push	h
+   0480 21 0A 00      [10]  770 	lxi 	h,#10
+   0483 39            [10]  771 	dad 	sp
+   0484 CD 00 00      [18]  772 	call	ccgint
+   0487 E5            [12]  773 	push	h
+   0488 3E 01         [ 7]  774 	mvi 	a,#1
+   048A CD 82 0C      [18]  775 	call	buffaddr
+   048D C1            [10]  776 	pop 	b
+   048E D1            [10]  777 	pop 	d
+   048F CD 00 00      [18]  778 	call	ccpint
+   0492 D1            [10]  779 	pop 	d
+   0493 CD 00 00      [18]  780 	call	ccne
+   0496 7C            [ 4]  781 	mov 	a,h
+   0497 B5            [ 4]  782 	ora 	l
+   0498 CA 2E 05      [10]  783 	jz  	$26
+                            784 ;            /* some chars in buffer - flush them */
+                            785 ;            fcba = fcbaddr(unit);
+   049B 21 00 00      [10]  786 	lxi 	h,#0
+   049E 39            [10]  787 	dad 	sp
+   049F E5            [12]  788 	push	h
+   04A0 21 08 00      [10]  789 	lxi 	h,#8
+   04A3 39            [10]  790 	dad 	sp
+   04A4 CD 00 00      [18]  791 	call	ccgint
+   04A7 E5            [12]  792 	push	h
+   04A8 3E 01         [ 7]  793 	mvi 	a,#1
+   04AA CD 69 0C      [18]  794 	call	fcbaddr
+   04AD C1            [10]  795 	pop 	b
+   04AE D1            [10]  796 	pop 	d
+   04AF CD 00 00      [18]  797 	call	ccpint
+                            798 ;            do {
+   04B2                     799 $27:
+                            800 ;                bdos(SETDMA, buffa);
+   04B2 21 1A 00      [10]  801 	lxi 	h,#26
+   04B5 E5            [12]  802 	push	h
+   04B6 21 04 00      [10]  803 	lxi 	h,#4
+   04B9 39            [10]  804 	dad 	sp
+   04BA CD 00 00      [18]  805 	call	ccgint
+   04BD E5            [12]  806 	push	h
+   04BE 3E 02         [ 7]  807 	mvi 	a,#2
+   04C0 CD 00 00      [18]  808 	call	bdos
+   04C3 C1            [10]  809 	pop 	b
+   04C4 C1            [10]  810 	pop 	b
+                            811 ;                if (0 != bdos1(CPMWR, fcba))
+   04C5 21 00 00      [10]  812 	lxi 	h,#0
+   04C8 E5            [12]  813 	push	h
+   04C9 21 15 00      [10]  814 	lxi 	h,#21
+   04CC E5            [12]  815 	push	h
+   04CD 21 04 00      [10]  816 	lxi 	h,#4
+   04D0 39            [10]  817 	dad 	sp
+   04D1 CD 00 00      [18]  818 	call	ccgint
+   04D4 E5            [12]  819 	push	h
+   04D5 3E 02         [ 7]  820 	mvi 	a,#2
+   04D7 CD 00 00      [18]  821 	call	bdos1
+   04DA C1            [10]  822 	pop 	b
+   04DB C1            [10]  823 	pop 	b
+   04DC D1            [10]  824 	pop 	d
+   04DD CD 00 00      [18]  825 	call	ccne
+   04E0 7C            [ 4]  826 	mov 	a,h
+   04E1 B5            [ 4]  827 	ora 	l
+   04E2 CA EE 04      [10]  828 	jz  	$30
+                            829 ;                    return (EOF);
+   04E5 21 01 00      [10]  830 	lxi 	h,#1
+   04E8 CD 00 00      [18]  831 	call	ccneg
+   04EB C3 34 05      [10]  832 	jmp 	$24
+                            833 ;            }
+   04EE                     834 $30:
+                            835 ;            while (bptr[unit] >
+   04EE                     836 $28:
+   04EE 21 84 08      [10]  837 	lxi 	h,bptr
+   04F1 E5            [12]  838 	push	h
+   04F2 21 08 00      [10]  839 	lxi 	h,#8
+   04F5 39            [10]  840 	dad 	sp
+   04F6 CD 00 00      [18]  841 	call	ccgint
+   04F9 29            [10]  842 	dad 	h
+   04FA D1            [10]  843 	pop 	d
+   04FB 19            [10]  844 	dad 	d
+   04FC CD 00 00      [18]  845 	call	ccgint
+   04FF E5            [12]  846 	push	h
+                            847 ;                (buffa=buffa+BLKSIZ));
+   0500 21 04 00      [10]  848 	lxi 	h,#4
+   0503 39            [10]  849 	dad 	sp
+   0504 E5            [12]  850 	push	h
+   0505 21 06 00      [10]  851 	lxi 	h,#6
+   0508 39            [10]  852 	dad 	sp
+   0509 CD 00 00      [18]  853 	call	ccgint
+   050C E5            [12]  854 	push	h
+   050D 21 80 00      [10]  855 	lxi 	h,#128
+   0510 D1            [10]  856 	pop 	d
+   0511 19            [10]  857 	dad 	d
+   0512 D1            [10]  858 	pop 	d
+   0513 CD 00 00      [18]  859 	call	ccpint
+   0516 D1            [10]  860 	pop 	d
+   0517 CD 00 00      [18]  861 	call	ccugt
+   051A 7C            [ 4]  862 	mov 	a,h
+   051B B5            [ 4]  863 	ora 	l
+   051C C2 B2 04      [10]  864 	jnz 	$27
+   051F                     865 $29:
+                            866 ;            bdos(SETDMA, DEFAULT_DMA);
+   051F 21 1A 00      [10]  867 	lxi 	h,#26
+   0522 E5            [12]  868 	push	h
+   0523 21 80 00      [10]  869 	lxi 	h,#128
+   0526 E5            [12]  870 	push	h
+   0527 3E 02         [ 7]  871 	mvi 	a,#2
+   0529 CD 00 00      [18]  872 	call	bdos
+   052C C1            [10]  873 	pop 	b
+   052D C1            [10]  874 	pop 	b
+                            875 ;        }
+                            876 ;    }
+   052E                     877 $26:
+                            878 ;    return NULL;
+   052E                     879 $25:
+   052E 21 00 00      [10]  880 	lxi 	h,#0
+   0531 C3 34 05      [10]  881 	jmp 	$24
+                            882 ;}
+   0534                     883 $24:
+   0534 C1            [10]  884 	pop 	b
+   0535 C1            [10]  885 	pop 	b
+   0536 C9            [10]  886 	ret
+                            887 ;fputc(c, unit) char c;
+   0537                     888 fputc:
+                            889 ;int unit;
+                            890 ;{
+                            891 ;    char *buffa;
+   0537 C5            [12]  892 	push	b
+                            893 ;    char *fcba;
+   0538 C5            [12]  894 	push	b
+                            895 ;    if (c == EOL) fputc(EOL2, unit);
+   0539 21 08 00      [10]  896 	lxi 	h,#8
+   053C 39            [10]  897 	dad 	sp
+   053D CD 00 00      [18]  898 	call	ccgchar
+   0540 E5            [12]  899 	push	h
+   0541 21 0A 00      [10]  900 	lxi 	h,#10
+   0544 D1            [10]  901 	pop 	d
+   0545 CD 00 00      [18]  902 	call	cceq
+   0548 7C            [ 4]  903 	mov 	a,h
+   0549 B5            [ 4]  904 	ora 	l
+   054A CA 60 05      [10]  905 	jz  	$32
+   054D 21 0D 00      [10]  906 	lxi 	h,#13
+   0550 E5            [12]  907 	push	h
+   0551 21 08 00      [10]  908 	lxi 	h,#8
+   0554 39            [10]  909 	dad 	sp
+   0555 CD 00 00      [18]  910 	call	ccgint
+   0558 E5            [12]  911 	push	h
+   0559 3E 02         [ 7]  912 	mvi 	a,#2
+   055B CD 37 05      [18]  913 	call	fputc
+   055E C1            [10]  914 	pop 	b
+   055F C1            [10]  915 	pop 	b
+                            916 ;    if ((unit == stdout) | (unit == stderr)) {
+   0560                     917 $32:
+   0560 21 06 00      [10]  918 	lxi 	h,#6
+   0563 39            [10]  919 	dad 	sp
+   0564 CD 00 00      [18]  920 	call	ccgint
+   0567 E5            [12]  921 	push	h
+   0568 21 01 00      [10]  922 	lxi 	h,#1
+   056B D1            [10]  923 	pop 	d
+   056C CD 00 00      [18]  924 	call	cceq
+   056F E5            [12]  925 	push	h
+   0570 21 08 00      [10]  926 	lxi 	h,#8
+   0573 39            [10]  927 	dad 	sp
+   0574 CD 00 00      [18]  928 	call	ccgint
+   0577 E5            [12]  929 	push	h
+   0578 21 02 00      [10]  930 	lxi 	h,#2
+   057B D1            [10]  931 	pop 	d
+   057C CD 00 00      [18]  932 	call	cceq
+   057F D1            [10]  933 	pop 	d
+   0580 CD 00 00      [18]  934 	call	ccor
+   0583 7C            [ 4]  935 	mov 	a,h
+   0584 B5            [ 4]  936 	ora 	l
+   0585 CA A5 05      [10]  937 	jz  	$33
+                            938 ;        bdos(CPMCOUT, c);
+   0588 21 02 00      [10]  939 	lxi 	h,#2
+   058B E5            [12]  940 	push	h
+   058C 21 0A 00      [10]  941 	lxi 	h,#10
+   058F 39            [10]  942 	dad 	sp
+   0590 CD 00 00      [18]  943 	call	ccgchar
+   0593 E5            [12]  944 	push	h
+   0594 3E 02         [ 7]  945 	mvi 	a,#2
+   0596 CD 00 00      [18]  946 	call	bdos
+   0599 C1            [10]  947 	pop 	b
+   059A C1            [10]  948 	pop 	b
+                            949 ;        return c;
+   059B 21 08 00      [10]  950 	lxi 	h,#8
+   059E 39            [10]  951 	dad 	sp
+   059F CD 00 00      [18]  952 	call	ccgchar
+   05A2 C3 31 07      [10]  953 	jmp 	$31
+                            954 ;    }
+                            955 ;    if (WRITE == modes[unit = unit - UNIT_OFFSET]) {
+   05A5                     956 $33:
+   05A5 21 02 00      [10]  957 	lxi 	h,#2
+   05A8 E5            [12]  958 	push	h
+   05A9 21 8C 08      [10]  959 	lxi 	h,modes
+   05AC E5            [12]  960 	push	h
+   05AD 21 0A 00      [10]  961 	lxi 	h,#10
+   05B0 39            [10]  962 	dad 	sp
+   05B1 E5            [12]  963 	push	h
+   05B2 21 0C 00      [10]  964 	lxi 	h,#12
+   05B5 39            [10]  965 	dad 	sp
+   05B6 CD 00 00      [18]  966 	call	ccgint
+   05B9 E5            [12]  967 	push	h
+   05BA 21 03 00      [10]  968 	lxi 	h,#3
+   05BD D1            [10]  969 	pop 	d
+   05BE CD 00 00      [18]  970 	call	ccsub
+   05C1 D1            [10]  971 	pop 	d
+   05C2 CD 00 00      [18]  972 	call	ccpint
+   05C5 29            [10]  973 	dad 	h
+   05C6 D1            [10]  974 	pop 	d
+   05C7 19            [10]  975 	dad 	d
+   05C8 CD 00 00      [18]  976 	call	ccgint
+   05CB D1            [10]  977 	pop 	d
+   05CC CD 00 00      [18]  978 	call	cceq
+   05CF 7C            [ 4]  979 	mov 	a,h
+   05D0 B5            [ 4]  980 	ora 	l
+   05D1 CA 28 07      [10]  981 	jz  	$34
+                            982 ;        if (bptr[unit] >= eptr[unit]) {
+   05D4 21 84 08      [10]  983 	lxi 	h,bptr
+   05D7 E5            [12]  984 	push	h
+   05D8 21 08 00      [10]  985 	lxi 	h,#8
+   05DB 39            [10]  986 	dad 	sp
+   05DC CD 00 00      [18]  987 	call	ccgint
+   05DF 29            [10]  988 	dad 	h
+   05E0 D1            [10]  989 	pop 	d
+   05E1 19            [10]  990 	dad 	d
+   05E2 CD 00 00      [18]  991 	call	ccgint
+   05E5 E5            [12]  992 	push	h
+   05E6 21 94 08      [10]  993 	lxi 	h,eptr
+   05E9 E5            [12]  994 	push	h
+   05EA 21 0A 00      [10]  995 	lxi 	h,#10
+   05ED 39            [10]  996 	dad 	sp
+   05EE CD 00 00      [18]  997 	call	ccgint
+   05F1 29            [10]  998 	dad 	h
+   05F2 D1            [10]  999 	pop 	d
+   05F3 19            [10] 1000 	dad 	d
+   05F4 CD 00 00      [18] 1001 	call	ccgint
+   05F7 D1            [10] 1002 	pop 	d
+   05F8 CD 00 00      [18] 1003 	call	ccge
+   05FB 7C            [ 4] 1004 	mov 	a,h
+   05FC B5            [ 4] 1005 	ora 	l
+   05FD CA FA 06      [10] 1006 	jz  	$35
+                           1007 ;            /* no room - dump buffer */
+                           1008 ;            fcba = fcbaddr(unit);
+   0600 21 00 00      [10] 1009 	lxi 	h,#0
+   0603 39            [10] 1010 	dad 	sp
+   0604 E5            [12] 1011 	push	h
+   0605 21 08 00      [10] 1012 	lxi 	h,#8
+   0608 39            [10] 1013 	dad 	sp
+   0609 CD 00 00      [18] 1014 	call	ccgint
+   060C E5            [12] 1015 	push	h
+   060D 3E 01         [ 7] 1016 	mvi 	a,#1
+   060F CD 69 0C      [18] 1017 	call	fcbaddr
+   0612 C1            [10] 1018 	pop 	b
+   0613 D1            [10] 1019 	pop 	d
+   0614 CD 00 00      [18] 1020 	call	ccpint
+                           1021 ;            buffa=buffaddr(unit);
+   0617 21 02 00      [10] 1022 	lxi 	h,#2
+   061A 39            [10] 1023 	dad 	sp
+   061B E5            [12] 1024 	push	h
+   061C 21 08 00      [10] 1025 	lxi 	h,#8
+   061F 39            [10] 1026 	dad 	sp
+   0620 CD 00 00      [18] 1027 	call	ccgint
+   0623 E5            [12] 1028 	push	h
+   0624 3E 01         [ 7] 1029 	mvi 	a,#1
+   0626 CD 82 0C      [18] 1030 	call	buffaddr
+   0629 C1            [10] 1031 	pop 	b
+   062A D1            [10] 1032 	pop 	d
+   062B CD 00 00      [18] 1033 	call	ccpint
+                           1034 ;            while (buffa < eptr[unit]) {
+   062E                    1035 $36:
+   062E 21 02 00      [10] 1036 	lxi 	h,#2
+   0631 39            [10] 1037 	dad 	sp
+   0632 CD 00 00      [18] 1038 	call	ccgint
+   0635 E5            [12] 1039 	push	h
+   0636 21 94 08      [10] 1040 	lxi 	h,eptr
+   0639 E5            [12] 1041 	push	h
+   063A 21 0A 00      [10] 1042 	lxi 	h,#10
+   063D 39            [10] 1043 	dad 	sp
+   063E CD 00 00      [18] 1044 	call	ccgint
+   0641 29            [10] 1045 	dad 	h
+   0642 D1            [10] 1046 	pop 	d
+   0643 19            [10] 1047 	dad 	d
+   0644 CD 00 00      [18] 1048 	call	ccgint
+   0647 D1            [10] 1049 	pop 	d
+   0648 CD 00 00      [18] 1050 	call	ccult
+   064B 7C            [ 4] 1051 	mov 	a,h
+   064C B5            [ 4] 1052 	ora 	l
+   064D CA 9F 06      [10] 1053 	jz  	$37
+                           1054 ;                bdos(SETDMA, buffa);
+   0650 21 1A 00      [10] 1055 	lxi 	h,#26
+   0653 E5            [12] 1056 	push	h
+   0654 21 04 00      [10] 1057 	lxi 	h,#4
+   0657 39            [10] 1058 	dad 	sp
+   0658 CD 00 00      [18] 1059 	call	ccgint
+   065B E5            [12] 1060 	push	h
+   065C 3E 02         [ 7] 1061 	mvi 	a,#2
+   065E CD 00 00      [18] 1062 	call	bdos
+   0661 C1            [10] 1063 	pop 	b
+   0662 C1            [10] 1064 	pop 	b
+                           1065 ;                if (0 != bdos1(CPMWR, fcba)) break;
+   0663 21 00 00      [10] 1066 	lxi 	h,#0
+   0666 E5            [12] 1067 	push	h
+   0667 21 15 00      [10] 1068 	lxi 	h,#21
+   066A E5            [12] 1069 	push	h
+   066B 21 04 00      [10] 1070 	lxi 	h,#4
+   066E 39            [10] 1071 	dad 	sp
+   066F CD 00 00      [18] 1072 	call	ccgint
+   0672 E5            [12] 1073 	push	h
+   0673 3E 02         [ 7] 1074 	mvi 	a,#2
+   0675 CD 00 00      [18] 1075 	call	bdos1
+   0678 C1            [10] 1076 	pop 	b
+   0679 C1            [10] 1077 	pop 	b
+   067A D1            [10] 1078 	pop 	d
+   067B CD 00 00      [18] 1079 	call	ccne
+   067E 7C            [ 4] 1080 	mov 	a,h
+   067F B5            [ 4] 1081 	ora 	l
+   0680 CA 86 06      [10] 1082 	jz  	$38
+   0683 C3 9F 06      [10] 1083 	jmp 	$37
+                           1084 ;                buffa = buffa + BLKSIZ;
+   0686                    1085 $38:
+   0686 21 02 00      [10] 1086 	lxi 	h,#2
+   0689 39            [10] 1087 	dad 	sp
+   068A E5            [12] 1088 	push	h
+   068B 21 04 00      [10] 1089 	lxi 	h,#4
+   068E 39            [10] 1090 	dad 	sp
+   068F CD 00 00      [18] 1091 	call	ccgint
+   0692 E5            [12] 1092 	push	h
+   0693 21 80 00      [10] 1093 	lxi 	h,#128
+   0696 D1            [10] 1094 	pop 	d
+   0697 19            [10] 1095 	dad 	d
+   0698 D1            [10] 1096 	pop 	d
+   0699 CD 00 00      [18] 1097 	call	ccpint
+                           1098 ;            }
+   069C C3 2E 06      [10] 1099 	jmp 	$36
+   069F                    1100 $37:
+                           1101 ;            bdos(SETDMA, DEFAULT_DMA);
+   069F 21 1A 00      [10] 1102 	lxi 	h,#26
+   06A2 E5            [12] 1103 	push	h
+   06A3 21 80 00      [10] 1104 	lxi 	h,#128
+   06A6 E5            [12] 1105 	push	h
+   06A7 3E 02         [ 7] 1106 	mvi 	a,#2
+   06A9 CD 00 00      [18] 1107 	call	bdos
+   06AC C1            [10] 1108 	pop 	b
+   06AD C1            [10] 1109 	pop 	b
+                           1110 ;            bptr[unit] = buffaddr(unit);
+   06AE 21 84 08      [10] 1111 	lxi 	h,bptr
+   06B1 E5            [12] 1112 	push	h
+   06B2 21 08 00      [10] 1113 	lxi 	h,#8
+   06B5 39            [10] 1114 	dad 	sp
+   06B6 CD 00 00      [18] 1115 	call	ccgint
+   06B9 29            [10] 1116 	dad 	h
+   06BA D1            [10] 1117 	pop 	d
+   06BB 19            [10] 1118 	dad 	d
+   06BC E5            [12] 1119 	push	h
+   06BD 21 08 00      [10] 1120 	lxi 	h,#8
+   06C0 39            [10] 1121 	dad 	sp
+   06C1 CD 00 00      [18] 1122 	call	ccgint
+   06C4 E5            [12] 1123 	push	h
+   06C5 3E 01         [ 7] 1124 	mvi 	a,#1
+   06C7 CD 82 0C      [18] 1125 	call	buffaddr
+   06CA C1            [10] 1126 	pop 	b
+   06CB D1            [10] 1127 	pop 	d
+   06CC CD 00 00      [18] 1128 	call	ccpint
+                           1129 ;            if (buffa < eptr[unit]) return EOF;
+   06CF 21 02 00      [10] 1130 	lxi 	h,#2
+   06D2 39            [10] 1131 	dad 	sp
+   06D3 CD 00 00      [18] 1132 	call	ccgint
+   06D6 E5            [12] 1133 	push	h
+   06D7 21 94 08      [10] 1134 	lxi 	h,eptr
+   06DA E5            [12] 1135 	push	h
+   06DB 21 0A 00      [10] 1136 	lxi 	h,#10
+   06DE 39            [10] 1137 	dad 	sp
+   06DF CD 00 00      [18] 1138 	call	ccgint
+   06E2 29            [10] 1139 	dad 	h
+   06E3 D1            [10] 1140 	pop 	d
+   06E4 19            [10] 1141 	dad 	d
+   06E5 CD 00 00      [18] 1142 	call	ccgint
+   06E8 D1            [10] 1143 	pop 	d
+   06E9 CD 00 00      [18] 1144 	call	ccult
+   06EC 7C            [ 4] 1145 	mov 	a,h
+   06ED B5            [ 4] 1146 	ora 	l
+   06EE CA FA 06      [10] 1147 	jz  	$39
+   06F1 21 01 00      [10] 1148 	lxi 	h,#1
+   06F4 CD 00 00      [18] 1149 	call	ccneg
+   06F7 C3 31 07      [10] 1150 	jmp 	$31
+                           1151 ;        }
+   06FA                    1152 $39:
+                           1153 ;        *(bptr[unit]++) = c;
+   06FA                    1154 $35:
+   06FA 21 84 08      [10] 1155 	lxi 	h,bptr
+   06FD E5            [12] 1156 	push	h
+   06FE 21 08 00      [10] 1157 	lxi 	h,#8
+   0701 39            [10] 1158 	dad 	sp
+   0702 CD 00 00      [18] 1159 	call	ccgint
+   0705 29            [10] 1160 	dad 	h
+   0706 D1            [10] 1161 	pop 	d
+   0707 19            [10] 1162 	dad 	d
+   0708 E5            [12] 1163 	push	h
+   0709 CD 00 00      [18] 1164 	call	ccgint
+   070C 23            [ 6] 1165 	inx 	h
+   070D D1            [10] 1166 	pop 	d
+   070E CD 00 00      [18] 1167 	call	ccpint
+   0711 2B            [ 6] 1168 	dcx 	h
+   0712 E5            [12] 1169 	push	h
+   0713 21 0A 00      [10] 1170 	lxi 	h,#10
+   0716 39            [10] 1171 	dad 	sp
+   0717 CD 00 00      [18] 1172 	call	ccgchar
+   071A D1            [10] 1173 	pop 	d
+   071B CD 00 00      [18] 1174 	call	ccpint
+                           1175 ;        return c;
+   071E 21 08 00      [10] 1176 	lxi 	h,#8
+   0721 39            [10] 1177 	dad 	sp
+   0722 CD 00 00      [18] 1178 	call	ccgchar
+   0725 C3 31 07      [10] 1179 	jmp 	$31
+                           1180 ;    }
+                           1181 ;    return EOF;
+   0728                    1182 $34:
+   0728 21 01 00      [10] 1183 	lxi 	h,#1
+   072B CD 00 00      [18] 1184 	call	ccneg
+   072E C3 31 07      [10] 1185 	jmp 	$31
+                           1186 ;}
+   0731                    1187 $31:
+   0731 C1            [10] 1188 	pop 	b
+   0732 C1            [10] 1189 	pop 	b
+   0733 C9            [10] 1190 	ret
+                           1191 ;allocunitno() {
+   0734                    1192 allocunitno:
+                           1193 ;    int i;
+   0734 C5            [12] 1194 	push	b
+                           1195 ;    /* returns # of first free buffer, EOF if none */
+                           1196 ;    /* buffer is not reserved (ie. mode remains FREE) */
+                           1197 ;    for (i = 0; i < NBUFFS; ++i)
+   0735 21 00 00      [10] 1198 	lxi 	h,#0
+   0738 39            [10] 1199 	dad 	sp
+   0739 E5            [12] 1200 	push	h
+   073A 21 00 00      [10] 1201 	lxi 	h,#0
+   073D D1            [10] 1202 	pop 	d
+   073E CD 00 00      [18] 1203 	call	ccpint
+   0741                    1204 $41:
+   0741 21 00 00      [10] 1205 	lxi 	h,#0
+   0744 39            [10] 1206 	dad 	sp
+   0745 CD 00 00      [18] 1207 	call	ccgint
+   0748 E5            [12] 1208 	push	h
+   0749 21 04 00      [10] 1209 	lxi 	h,#4
+   074C D1            [10] 1210 	pop 	d
+   074D CD 00 00      [18] 1211 	call	cclt
+   0750 7C            [ 4] 1212 	mov 	a,h
+   0751 B5            [ 4] 1213 	ora 	l
+   0752 C2 68 07      [10] 1214 	jnz 	$43
+   0755 C3 8C 07      [10] 1215 	jmp 	$44
+   0758                    1216 $42:
+   0758 21 00 00      [10] 1217 	lxi 	h,#0
+   075B 39            [10] 1218 	dad 	sp
+   075C E5            [12] 1219 	push	h
+   075D CD 00 00      [18] 1220 	call	ccgint
+   0760 23            [ 6] 1221 	inx 	h
+   0761 D1            [10] 1222 	pop 	d
+   0762 CD 00 00      [18] 1223 	call	ccpint
+   0765 C3 41 07      [10] 1224 	jmp 	$41
+   0768                    1225 $43:
+                           1226 ;        if (modes[i] == FREE) break;
+   0768 21 8C 08      [10] 1227 	lxi 	h,modes
+   076B E5            [12] 1228 	push	h
+   076C 21 02 00      [10] 1229 	lxi 	h,#2
+   076F 39            [10] 1230 	dad 	sp
+   0770 CD 00 00      [18] 1231 	call	ccgint
+   0773 29            [10] 1232 	dad 	h
+   0774 D1            [10] 1233 	pop 	d
+   0775 19            [10] 1234 	dad 	d
+   0776 CD 00 00      [18] 1235 	call	ccgint
+   0779 E5            [12] 1236 	push	h
+   077A 21 00 00      [10] 1237 	lxi 	h,#0
+   077D D1            [10] 1238 	pop 	d
+   077E CD 00 00      [18] 1239 	call	cceq
+   0781 7C            [ 4] 1240 	mov 	a,h
+   0782 B5            [ 4] 1241 	ora 	l
+   0783 CA 89 07      [10] 1242 	jz  	$45
+   0786 C3 8C 07      [10] 1243 	jmp 	$44
+                           1244 ;    if (i >= NBUFFS) return EOF;
+   0789                    1245 $45:
+   0789 C3 58 07      [10] 1246 	jmp 	$42
+   078C                    1247 $44:
+   078C 21 00 00      [10] 1248 	lxi 	h,#0
+   078F 39            [10] 1249 	dad 	sp
+   0790 CD 00 00      [18] 1250 	call	ccgint
+   0793 E5            [12] 1251 	push	h
+   0794 21 04 00      [10] 1252 	lxi 	h,#4
+   0797 D1            [10] 1253 	pop 	d
+   0798 CD 00 00      [18] 1254 	call	ccge
+   079B 7C            [ 4] 1255 	mov 	a,h
+   079C B5            [ 4] 1256 	ora 	l
+   079D CA AC 07      [10] 1257 	jz  	$46
+   07A0 21 01 00      [10] 1258 	lxi 	h,#1
+   07A3 CD 00 00      [18] 1259 	call	ccneg
+   07A6 C3 BC 07      [10] 1260 	jmp 	$40
+                           1261 ;    else return (i + UNIT_OFFSET);
+   07A9 C3 BC 07      [10] 1262 	jmp 	$47
+   07AC                    1263 $46:
+   07AC 21 00 00      [10] 1264 	lxi 	h,#0
+   07AF 39            [10] 1265 	dad 	sp
+   07B0 CD 00 00      [18] 1266 	call	ccgint
+   07B3 E5            [12] 1267 	push	h
+   07B4 21 03 00      [10] 1268 	lxi 	h,#3
+   07B7 D1            [10] 1269 	pop 	d
+   07B8 19            [10] 1270 	dad 	d
+   07B9 C3 BC 07      [10] 1271 	jmp 	$40
+   07BC                    1272 $47:
+                           1273 ;}
+   07BC                    1274 $40:
+   07BC C1            [10] 1275 	pop 	b
+   07BD C9            [10] 1276 	ret
+                           1277 ;fopen(name, mode) char *name, *mode;
+   07BE                    1278 fopen:
+                           1279 ;{
+                           1280 ;    int fileno, fno2;
+   07BE C5            [12] 1281 	push	b
+   07BF C5            [12] 1282 	push	b
+                           1283 ;    if (EOF != (fileno = allocunitno())) {
+   07C0 21 01 00      [10] 1284 	lxi 	h,#1
+   07C3 CD 00 00      [18] 1285 	call	ccneg
+   07C6 E5            [12] 1286 	push	h
+   07C7 21 04 00      [10] 1287 	lxi 	h,#4
+   07CA 39            [10] 1288 	dad 	sp
+   07CB E5            [12] 1289 	push	h
+   07CC 3E 00         [ 7] 1290 	mvi 	a,#0
+   07CE CD 34 07      [18] 1291 	call	allocunitno
+   07D1 D1            [10] 1292 	pop 	d
+   07D2 CD 00 00      [18] 1293 	call	ccpint
+   07D5 D1            [10] 1294 	pop 	d
+   07D6 CD 00 00      [18] 1295 	call	ccne
+   07D9 7C            [ 4] 1296 	mov 	a,h
+   07DA B5            [ 4] 1297 	ora 	l
+   07DB CA 6F 09      [10] 1298 	jz  	$49
+                           1299 ;        /* internal file # excludes units 0,1 & 2
+                           1300 ;                since there's no buffers associated with
+                           1301 ;                these units */
+                           1302 ;        movname(clearfcb(fcbaddr(fno2 = fileno
+   07DE 21 00 00      [10] 1303 	lxi 	h,#0
+   07E1 39            [10] 1304 	dad 	sp
+   07E2 E5            [12] 1305 	push	h
+   07E3 21 04 00      [10] 1306 	lxi 	h,#4
+   07E6 39            [10] 1307 	dad 	sp
+                           1308 ;            - UNIT_OFFSET)), name);
+   07E7 CD 00 00      [18] 1309 	call	ccgint
+   07EA E5            [12] 1310 	push	h
+   07EB 21 03 00      [10] 1311 	lxi 	h,#3
+   07EE D1            [10] 1312 	pop 	d
+   07EF CD 00 00      [18] 1313 	call	ccsub
+   07F2 D1            [10] 1314 	pop 	d
+   07F3 CD 00 00      [18] 1315 	call	ccpint
+   07F6 E5            [12] 1316 	push	h
+   07F7 3E 01         [ 7] 1317 	mvi 	a,#1
+   07F9 CD 69 0C      [18] 1318 	call	fcbaddr
+   07FC C1            [10] 1319 	pop 	b
+   07FD E5            [12] 1320 	push	h
+   07FE 3E 01         [ 7] 1321 	mvi 	a,#1
+   0800 CD 78 09      [18] 1322 	call	clearfcb
+   0803 C1            [10] 1323 	pop 	b
+   0804 E5            [12] 1324 	push	h
+   0805 21 0A 00      [10] 1325 	lxi 	h,#10
+   0808 39            [10] 1326 	dad 	sp
+   0809 CD 00 00      [18] 1327 	call	ccgint
+   080C E5            [12] 1328 	push	h
+   080D 3E 02         [ 7] 1329 	mvi 	a,#2
+   080F CD 15 0A      [18] 1330 	call	movname
+   0812 C1            [10] 1331 	pop 	b
+   0813 C1            [10] 1332 	pop 	b
+                           1333 ;        if ('r' == *mode) {
+   0814 21 72 00      [10] 1334 	lxi 	h,#114
+   0817 E5            [12] 1335 	push	h
+   0818 21 08 00      [10] 1336 	lxi 	h,#8
+   081B 39            [10] 1337 	dad 	sp
+   081C CD 00 00      [18] 1338 	call	ccgint
+   081F CD 00 00      [18] 1339 	call	ccgchar
+   0822 D1            [10] 1340 	pop 	d
+   0823 CD 00 00      [18] 1341 	call	cceq
+   0826 7C            [ 4] 1342 	mov 	a,h
+   0827 B5            [ 4] 1343 	ora 	l
+   0828 CA AF 08      [10] 1344 	jz  	$50
+                           1345 ;            if (bdos1(CPMOPEN, fcbaddr(fno2)) != CPMERR)
+   082B 21 0F 00      [10] 1346 	lxi 	h,#15
+   082E E5            [12] 1347 	push	h
+   082F 21 02 00      [10] 1348 	lxi 	h,#2
+   0832 39            [10] 1349 	dad 	sp
+   0833 CD 00 00      [18] 1350 	call	ccgint
+   0836 E5            [12] 1351 	push	h
+   0837 3E 01         [ 7] 1352 	mvi 	a,#1
+   0839 CD 69 0C      [18] 1353 	call	fcbaddr
+   083C C1            [10] 1354 	pop 	b
+   083D E5            [12] 1355 	push	h
+   083E 3E 02         [ 7] 1356 	mvi 	a,#2
+   0840 CD 00 00      [18] 1357 	call	bdos1
+   0843 C1            [10] 1358 	pop 	b
+   0844 C1            [10] 1359 	pop 	b
+   0845 E5            [12] 1360 	push	h
+   0846 21 FF 00      [10] 1361 	lxi 	h,#255
+   0849 D1            [10] 1362 	pop 	d
+   084A CD 00 00      [18] 1363 	call	ccne
+   084D 7C            [ 4] 1364 	mov 	a,h
+   084E B5            [ 4] 1365 	ora 	l
+   084F CA AC 08      [10] 1366 	jz  	$51
+                           1367 ;            {
+                           1368 ;                modes[fno2] = READ;
+   0852 21 8C 08      [10] 1369 	lxi 	h,modes
+   0855 E5            [12] 1370 	push	h
+   0856 21 02 00      [10] 1371 	lxi 	h,#2
+   0859 39            [10] 1372 	dad 	sp
+   085A CD 00 00      [18] 1373 	call	ccgint
+   085D 29            [10] 1374 	dad 	h
+   085E D1            [10] 1375 	pop 	d
+   085F 19            [10] 1376 	dad 	d
+   0860 E5            [12] 1377 	push	h
+   0861 21 01 00      [10] 1378 	lxi 	h,#1
+   0864 D1            [10] 1379 	pop 	d
+   0865 CD 00 00      [18] 1380 	call	ccpint
+                           1381 ;                /* ptr>bufsiz => buffer empty*/
+                           1382 ;                eptr[fno2] =
+   0868 21 94 08      [10] 1383 	lxi 	h,eptr
+   086B E5            [12] 1384 	push	h
+   086C 21 02 00      [10] 1385 	lxi 	h,#2
+   086F 39            [10] 1386 	dad 	sp
+   0870 CD 00 00      [18] 1387 	call	ccgint
+   0873 29            [10] 1388 	dad 	h
+   0874 D1            [10] 1389 	pop 	d
+   0875 19            [10] 1390 	dad 	d
+   0876 E5            [12] 1391 	push	h
+                           1392 ;                    bptr[fno2] = buffaddr(fno2+1); // <tel:+1>);
+   0877 21 84 08      [10] 1393 	lxi 	h,bptr
+   087A E5            [12] 1394 	push	h
+   087B 21 04 00      [10] 1395 	lxi 	h,#4
+   087E 39            [10] 1396 	dad 	sp
+   087F CD 00 00      [18] 1397 	call	ccgint
+   0882 29            [10] 1398 	dad 	h
+   0883 D1            [10] 1399 	pop 	d
+   0884 19            [10] 1400 	dad 	d
+   0885 E5            [12] 1401 	push	h
+   0886 21 04 00      [10] 1402 	lxi 	h,#4
+   0889 39            [10] 1403 	dad 	sp
+   088A CD 00 00      [18] 1404 	call	ccgint
+   088D E5            [12] 1405 	push	h
+   088E 21 01 00      [10] 1406 	lxi 	h,#1
+   0891 D1            [10] 1407 	pop 	d
+   0892 19            [10] 1408 	dad 	d
+   0893 E5            [12] 1409 	push	h
+   0894 3E 01         [ 7] 1410 	mvi 	a,#1
+   0896 CD 82 0C      [18] 1411 	call	buffaddr
+   0899 C1            [10] 1412 	pop 	b
+   089A D1            [10] 1413 	pop 	d
+   089B CD 00 00      [18] 1414 	call	ccpint
+   089E D1            [10] 1415 	pop 	d
+   089F CD 00 00      [18] 1416 	call	ccpint
+                           1417 ;                return fileno;
+   08A2 21 02 00      [10] 1418 	lxi 	h,#2
+   08A5 39            [10] 1419 	dad 	sp
+   08A6 CD 00 00      [18] 1420 	call	ccgint
+   08A9 C3 75 09      [10] 1421 	jmp 	$48
+                           1422 ;            }
+                           1423 ;        }
+   08AC                    1424 $51:
+                           1425 ;        else if ('w' == *mode) {
+   08AC C3 6F 09      [10] 1426 	jmp 	$52
+   08AF                    1427 $50:
+   08AF 21 77 00      [10] 1428 	lxi 	h,#119
+   08B2 E5            [12] 1429 	push	h
+   08B3 21 08 00      [10] 1430 	lxi 	h,#8
+   08B6 39            [10] 1431 	dad 	sp
+   08B7 CD 00 00      [18] 1432 	call	ccgint
+   08BA CD 00 00      [18] 1433 	call	ccgchar
+   08BD D1            [10] 1434 	pop 	d
+   08BE CD 00 00      [18] 1435 	call	cceq
+   08C1 7C            [ 4] 1436 	mov 	a,h
+   08C2 B5            [ 4] 1437 	ora 	l
+   08C3 CA 6F 09      [10] 1438 	jz  	$53
+                           1439 ;            bdos(CPMERA, fcbaddr(fno2));
+   08C6 21 13 00      [10] 1440 	lxi 	h,#19
+   08C9 E5            [12] 1441 	push	h
+   08CA 21 02 00      [10] 1442 	lxi 	h,#2
+   08CD 39            [10] 1443 	dad 	sp
+   08CE CD 00 00      [18] 1444 	call	ccgint
+   08D1 E5            [12] 1445 	push	h
+   08D2 3E 01         [ 7] 1446 	mvi 	a,#1
+   08D4 CD 69 0C      [18] 1447 	call	fcbaddr
+   08D7 C1            [10] 1448 	pop 	b
+   08D8 E5            [12] 1449 	push	h
+   08D9 3E 02         [ 7] 1450 	mvi 	a,#2
+   08DB CD 00 00      [18] 1451 	call	bdos
+   08DE C1            [10] 1452 	pop 	b
+   08DF C1            [10] 1453 	pop 	b
+                           1454 ;            if (bdos1(CPMCREAT, fcbaddr(fno2)) != CPMERR){
+   08E0 21 16 00      [10] 1455 	lxi 	h,#22
+   08E3 E5            [12] 1456 	push	h
+   08E4 21 02 00      [10] 1457 	lxi 	h,#2
+   08E7 39            [10] 1458 	dad 	sp
+   08E8 CD 00 00      [18] 1459 	call	ccgint
+   08EB E5            [12] 1460 	push	h
+   08EC 3E 01         [ 7] 1461 	mvi 	a,#1
+   08EE CD 69 0C      [18] 1462 	call	fcbaddr
+   08F1 C1            [10] 1463 	pop 	b
+   08F2 E5            [12] 1464 	push	h
+   08F3 3E 02         [ 7] 1465 	mvi 	a,#2
+   08F5 CD 00 00      [18] 1466 	call	bdos1
+   08F8 C1            [10] 1467 	pop 	b
+   08F9 C1            [10] 1468 	pop 	b
+   08FA E5            [12] 1469 	push	h
+   08FB 21 FF 00      [10] 1470 	lxi 	h,#255
+   08FE D1            [10] 1471 	pop 	d
+   08FF CD 00 00      [18] 1472 	call	ccne
+   0902 7C            [ 4] 1473 	mov 	a,h
+   0903 B5            [ 4] 1474 	ora 	l
+   0904 CA 6F 09      [10] 1475 	jz  	$54
+                           1476 ;                modes[fno2] = WRITE;
+   0907 21 8C 08      [10] 1477 	lxi 	h,modes
+   090A E5            [12] 1478 	push	h
+   090B 21 02 00      [10] 1479 	lxi 	h,#2
+   090E 39            [10] 1480 	dad 	sp
+   090F CD 00 00      [18] 1481 	call	ccgint
+   0912 29            [10] 1482 	dad 	h
+   0913 D1            [10] 1483 	pop 	d
+   0914 19            [10] 1484 	dad 	d
+   0915 E5            [12] 1485 	push	h
+   0916 21 02 00      [10] 1486 	lxi 	h,#2
+   0919 D1            [10] 1487 	pop 	d
+   091A CD 00 00      [18] 1488 	call	ccpint
+                           1489 ;                bptr[fno2] = buffaddr(fno2);
+   091D 21 84 08      [10] 1490 	lxi 	h,bptr
+   0920 E5            [12] 1491 	push	h
+   0921 21 02 00      [10] 1492 	lxi 	h,#2
+   0924 39            [10] 1493 	dad 	sp
+   0925 CD 00 00      [18] 1494 	call	ccgint
+   0928 29            [10] 1495 	dad 	h
+   0929 D1            [10] 1496 	pop 	d
+   092A 19            [10] 1497 	dad 	d
+   092B E5            [12] 1498 	push	h
+   092C 21 02 00      [10] 1499 	lxi 	h,#2
+   092F 39            [10] 1500 	dad 	sp
+   0930 CD 00 00      [18] 1501 	call	ccgint
+   0933 E5            [12] 1502 	push	h
+   0934 3E 01         [ 7] 1503 	mvi 	a,#1
+   0936 CD 82 0C      [18] 1504 	call	buffaddr
+   0939 C1            [10] 1505 	pop 	b
+   093A D1            [10] 1506 	pop 	d
+   093B CD 00 00      [18] 1507 	call	ccpint
+                           1508 ;                eptr[fno2] = buffaddr(fno2+1); // <tel:+1>);
+   093E 21 94 08      [10] 1509 	lxi 	h,eptr
+   0941 E5            [12] 1510 	push	h
+   0942 21 02 00      [10] 1511 	lxi 	h,#2
+   0945 39            [10] 1512 	dad 	sp
+   0946 CD 00 00      [18] 1513 	call	ccgint
+   0949 29            [10] 1514 	dad 	h
+   094A D1            [10] 1515 	pop 	d
+   094B 19            [10] 1516 	dad 	d
+   094C E5            [12] 1517 	push	h
+   094D 21 02 00      [10] 1518 	lxi 	h,#2
+   0950 39            [10] 1519 	dad 	sp
+   0951 CD 00 00      [18] 1520 	call	ccgint
+   0954 E5            [12] 1521 	push	h
+   0955 21 01 00      [10] 1522 	lxi 	h,#1
+   0958 D1            [10] 1523 	pop 	d
+   0959 19            [10] 1524 	dad 	d
+   095A E5            [12] 1525 	push	h
+   095B 3E 01         [ 7] 1526 	mvi 	a,#1
+   095D CD 82 0C      [18] 1527 	call	buffaddr
+   0960 C1            [10] 1528 	pop 	b
+   0961 D1            [10] 1529 	pop 	d
+   0962 CD 00 00      [18] 1530 	call	ccpint
+                           1531 ;                return fileno;
+   0965 21 02 00      [10] 1532 	lxi 	h,#2
+   0968 39            [10] 1533 	dad 	sp
+   0969 CD 00 00      [18] 1534 	call	ccgint
+   096C C3 75 09      [10] 1535 	jmp 	$48
+                           1536 ;            }
+                           1537 ;        }
+   096F                    1538 $54:
+                           1539 ;    }
+   096F                    1540 $53:
+   096F                    1541 $52:
+                           1542 ;    return NULL;
+   096F                    1543 $49:
+   096F 21 00 00      [10] 1544 	lxi 	h,#0
+   0972 C3 75 09      [10] 1545 	jmp 	$48
+                           1546 ;}
+   0975                    1547 $48:
+   0975 C1            [10] 1548 	pop 	b
+   0976 C1            [10] 1549 	pop 	b
+   0977 C9            [10] 1550 	ret
+                           1551 ;clearfcb(fcb) char fcb[];
+   0978                    1552 clearfcb:
+                           1553 ;{
+                           1554 ;    int i;
+   0978 C5            [12] 1555 	push	b
+                           1556 ;    for (i=0; i<FCBSIZ; fcb[i++] = 0);
+   0979 21 00 00      [10] 1557 	lxi 	h,#0
+   097C 39            [10] 1558 	dad 	sp
+   097D E5            [12] 1559 	push	h
+   097E 21 00 00      [10] 1560 	lxi 	h,#0
+   0981 D1            [10] 1561 	pop 	d
+   0982 CD 00 00      [18] 1562 	call	ccpint
+   0985                    1563 $56:
+   0985 21 00 00      [10] 1564 	lxi 	h,#0
+   0988 39            [10] 1565 	dad 	sp
+   0989 CD 00 00      [18] 1566 	call	ccgint
+   098C E5            [12] 1567 	push	h
+   098D 21 21 00      [10] 1568 	lxi 	h,#33
+   0990 D1            [10] 1569 	pop 	d
+   0991 CD 00 00      [18] 1570 	call	cclt
+   0994 7C            [ 4] 1571 	mov 	a,h
+   0995 B5            [ 4] 1572 	ora 	l
+   0996 C2 BE 09      [10] 1573 	jnz 	$58
+   0999 C3 C1 09      [10] 1574 	jmp 	$59
+   099C                    1575 $57:
+   099C 21 04 00      [10] 1576 	lxi 	h,#4
+   099F 39            [10] 1577 	dad 	sp
+   09A0 CD 00 00      [18] 1578 	call	ccgint
+   09A3 E5            [12] 1579 	push	h
+   09A4 21 02 00      [10] 1580 	lxi 	h,#2
+   09A7 39            [10] 1581 	dad 	sp
+   09A8 E5            [12] 1582 	push	h
+   09A9 CD 00 00      [18] 1583 	call	ccgint
+   09AC 23            [ 6] 1584 	inx 	h
+   09AD D1            [10] 1585 	pop 	d
+   09AE CD 00 00      [18] 1586 	call	ccpint
+   09B1 2B            [ 6] 1587 	dcx 	h
+   09B2 D1            [10] 1588 	pop 	d
+   09B3 19            [10] 1589 	dad 	d
+   09B4 E5            [12] 1590 	push	h
+   09B5 21 00 00      [10] 1591 	lxi 	h,#0
+   09B8 D1            [10] 1592 	pop 	d
+   09B9 7D            [ 4] 1593 	mov 	a,l
+   09BA 12            [ 7] 1594 	stax	d
+   09BB C3 85 09      [10] 1595 	jmp 	$56
+   09BE                    1596 $58:
+   09BE C3 9C 09      [10] 1597 	jmp 	$57
+   09C1                    1598 $59:
+                           1599 ;    /* blank out name field */
+                           1600 ;    for (i=1; i<12; fcb[i++] = ' ');
+   09C1 21 00 00      [10] 1601 	lxi 	h,#0
+   09C4 39            [10] 1602 	dad 	sp
+   09C5 E5            [12] 1603 	push	h
+   09C6 21 01 00      [10] 1604 	lxi 	h,#1
+   09C9 D1            [10] 1605 	pop 	d
+   09CA CD 00 00      [18] 1606 	call	ccpint
+   09CD                    1607 $60:
+   09CD 21 00 00      [10] 1608 	lxi 	h,#0
+   09D0 39            [10] 1609 	dad 	sp
+   09D1 CD 00 00      [18] 1610 	call	ccgint
+   09D4 E5            [12] 1611 	push	h
+   09D5 21 0C 00      [10] 1612 	lxi 	h,#12
+   09D8 D1            [10] 1613 	pop 	d
+   09D9 CD 00 00      [18] 1614 	call	cclt
+   09DC 7C            [ 4] 1615 	mov 	a,h
+   09DD B5            [ 4] 1616 	ora 	l
+   09DE C2 06 0A      [10] 1617 	jnz 	$62
+   09E1 C3 09 0A      [10] 1618 	jmp 	$63
+   09E4                    1619 $61:
+   09E4 21 04 00      [10] 1620 	lxi 	h,#4
+   09E7 39            [10] 1621 	dad 	sp
+   09E8 CD 00 00      [18] 1622 	call	ccgint
+   09EB E5            [12] 1623 	push	h
+   09EC 21 02 00      [10] 1624 	lxi 	h,#2
+   09EF 39            [10] 1625 	dad 	sp
+   09F0 E5            [12] 1626 	push	h
+   09F1 CD 00 00      [18] 1627 	call	ccgint
+   09F4 23            [ 6] 1628 	inx 	h
+   09F5 D1            [10] 1629 	pop 	d
+   09F6 CD 00 00      [18] 1630 	call	ccpint
+   09F9 2B            [ 6] 1631 	dcx 	h
+   09FA D1            [10] 1632 	pop 	d
+   09FB 19            [10] 1633 	dad 	d
+   09FC E5            [12] 1634 	push	h
+   09FD 21 20 00      [10] 1635 	lxi 	h,#32
+   0A00 D1            [10] 1636 	pop 	d
+   0A01 7D            [ 4] 1637 	mov 	a,l
+   0A02 12            [ 7] 1638 	stax	d
+   0A03 C3 CD 09      [10] 1639 	jmp 	$60
+   0A06                    1640 $62:
+   0A06 C3 E4 09      [10] 1641 	jmp 	$61
+   0A09                    1642 $63:
+                           1643 ;    return fcb;
+   0A09 21 04 00      [10] 1644 	lxi 	h,#4
+   0A0C 39            [10] 1645 	dad 	sp
+   0A0D CD 00 00      [18] 1646 	call	ccgint
+   0A10 C3 13 0A      [10] 1647 	jmp 	$55
+                           1648 ;}
+   0A13                    1649 $55:
+   0A13 C1            [10] 1650 	pop 	b
+   0A14 C9            [10] 1651 	ret
+                           1652 ;movname(fcb, str) char fcb[], *str;
+   0A15                    1653 movname:
+                           1654 ;{
+                           1655 ;    int i;
+   0A15 C5            [12] 1656 	push	b
+                           1657 ;    char c;
+   0A16 3B            [ 6] 1658 	dcx 	sp
+                           1659 ;    i = 1; /* first char of name @ pos 1 */
+   0A17 21 01 00      [10] 1660 	lxi 	h,#1
+   0A1A 39            [10] 1661 	dad 	sp
+   0A1B E5            [12] 1662 	push	h
+   0A1C 21 01 00      [10] 1663 	lxi 	h,#1
+   0A1F D1            [10] 1664 	pop 	d
+   0A20 CD 00 00      [18] 1665 	call	ccpint
+                           1666 ;    *fcb = 0;
+   0A23 21 07 00      [10] 1667 	lxi 	h,#7
+   0A26 39            [10] 1668 	dad 	sp
+   0A27 CD 00 00      [18] 1669 	call	ccgint
+   0A2A E5            [12] 1670 	push	h
+   0A2B 21 00 00      [10] 1671 	lxi 	h,#0
+   0A2E D1            [10] 1672 	pop 	d
+   0A2F 7D            [ 4] 1673 	mov 	a,l
+   0A30 12            [ 7] 1674 	stax	d
+                           1675 ;    if (':' == str[1]) {
+   0A31 21 3A 00      [10] 1676 	lxi 	h,#58
+   0A34 E5            [12] 1677 	push	h
+   0A35 21 07 00      [10] 1678 	lxi 	h,#7
+   0A38 39            [10] 1679 	dad 	sp
+   0A39 CD 00 00      [18] 1680 	call	ccgint
+   0A3C E5            [12] 1681 	push	h
+   0A3D 21 01 00      [10] 1682 	lxi 	h,#1
+   0A40 D1            [10] 1683 	pop 	d
+   0A41 19            [10] 1684 	dad 	d
+   0A42 CD 00 00      [18] 1685 	call	ccgchar
+   0A45 D1            [10] 1686 	pop 	d
+   0A46 CD 00 00      [18] 1687 	call	cceq
+   0A49 7C            [ 4] 1688 	mov 	a,h
+   0A4A B5            [ 4] 1689 	ora 	l
+   0A4B CA D1 0A      [10] 1690 	jz  	$65
+                           1691 ;        c = toupper(str[0]);
+   0A4E 21 00 00      [10] 1692 	lxi 	h,#0
+   0A51 39            [10] 1693 	dad 	sp
+   0A52 E5            [12] 1694 	push	h
+   0A53 21 07 00      [10] 1695 	lxi 	h,#7
+   0A56 39            [10] 1696 	dad 	sp
+   0A57 CD 00 00      [18] 1697 	call	ccgint
+   0A5A E5            [12] 1698 	push	h
+   0A5B 21 00 00      [10] 1699 	lxi 	h,#0
+   0A5E D1            [10] 1700 	pop 	d
+   0A5F 19            [10] 1701 	dad 	d
+   0A60 CD 00 00      [18] 1702 	call	ccgchar
+   0A63 E5            [12] 1703 	push	h
+   0A64 3E 01         [ 7] 1704 	mvi 	a,#1
+   0A66 CD 00 00      [18] 1705 	call	toupper
+   0A69 C1            [10] 1706 	pop 	b
+   0A6A D1            [10] 1707 	pop 	d
+   0A6B 7D            [ 4] 1708 	mov 	a,l
+   0A6C 12            [ 7] 1709 	stax	d
+                           1710 ;        if (('A' <= c) & ('B' >= c)) {
+   0A6D 21 41 00      [10] 1711 	lxi 	h,#65
+   0A70 E5            [12] 1712 	push	h
+   0A71 21 02 00      [10] 1713 	lxi 	h,#2
+   0A74 39            [10] 1714 	dad 	sp
+   0A75 CD 00 00      [18] 1715 	call	ccgchar
+   0A78 D1            [10] 1716 	pop 	d
+   0A79 CD 00 00      [18] 1717 	call	ccle
+   0A7C E5            [12] 1718 	push	h
+   0A7D 21 42 00      [10] 1719 	lxi 	h,#66
+   0A80 E5            [12] 1720 	push	h
+   0A81 21 04 00      [10] 1721 	lxi 	h,#4
+   0A84 39            [10] 1722 	dad 	sp
+   0A85 CD 00 00      [18] 1723 	call	ccgchar
+   0A88 D1            [10] 1724 	pop 	d
+   0A89 CD 00 00      [18] 1725 	call	ccge
+   0A8C D1            [10] 1726 	pop 	d
+   0A8D CD 00 00      [18] 1727 	call	ccand
+   0A90 7C            [ 4] 1728 	mov 	a,h
+   0A91 B5            [ 4] 1729 	ora 	l
+   0A92 CA D1 0A      [10] 1730 	jz  	$66
+                           1731 ;            *fcb = (c - 'A' + 1);
+   0A95 21 07 00      [10] 1732 	lxi 	h,#7
+   0A98 39            [10] 1733 	dad 	sp
+   0A99 CD 00 00      [18] 1734 	call	ccgint
+   0A9C E5            [12] 1735 	push	h
+   0A9D 21 02 00      [10] 1736 	lxi 	h,#2
+   0AA0 39            [10] 1737 	dad 	sp
+   0AA1 CD 00 00      [18] 1738 	call	ccgchar
+   0AA4 E5            [12] 1739 	push	h
+   0AA5 21 41 00      [10] 1740 	lxi 	h,#65
+   0AA8 D1            [10] 1741 	pop 	d
+   0AA9 CD 00 00      [18] 1742 	call	ccsub
+   0AAC E5            [12] 1743 	push	h
+   0AAD 21 01 00      [10] 1744 	lxi 	h,#1
+   0AB0 D1            [10] 1745 	pop 	d
+   0AB1 19            [10] 1746 	dad 	d
+   0AB2 D1            [10] 1747 	pop 	d
+   0AB3 7D            [ 4] 1748 	mov 	a,l
+   0AB4 12            [ 7] 1749 	stax	d
+                           1750 ;            str++;
+   0AB5 21 05 00      [10] 1751 	lxi 	h,#5
+   0AB8 39            [10] 1752 	dad 	sp
+   0AB9 E5            [12] 1753 	push	h
+   0ABA CD 00 00      [18] 1754 	call	ccgint
+   0ABD 23            [ 6] 1755 	inx 	h
+   0ABE D1            [10] 1756 	pop 	d
+   0ABF CD 00 00      [18] 1757 	call	ccpint
+   0AC2 2B            [ 6] 1758 	dcx 	h
+                           1759 ;            str++;
+   0AC3 21 05 00      [10] 1760 	lxi 	h,#5
+   0AC6 39            [10] 1761 	dad 	sp
+   0AC7 E5            [12] 1762 	push	h
+   0AC8 CD 00 00      [18] 1763 	call	ccgint
+   0ACB 23            [ 6] 1764 	inx 	h
+   0ACC D1            [10] 1765 	pop 	d
+   0ACD CD 00 00      [18] 1766 	call	ccpint
+   0AD0 2B            [ 6] 1767 	dcx 	h
+                           1768 ;        }
+                           1769 ;    }
+   0AD1                    1770 $66:
+                           1771 ;    while ((NULL != *str) & (i<9)) {
+   0AD1                    1772 $65:
+   0AD1                    1773 $67:
+   0AD1 21 00 00      [10] 1774 	lxi 	h,#0
+   0AD4 E5            [12] 1775 	push	h
+   0AD5 21 07 00      [10] 1776 	lxi 	h,#7
+   0AD8 39            [10] 1777 	dad 	sp
+   0AD9 CD 00 00      [18] 1778 	call	ccgint
+   0ADC CD 00 00      [18] 1779 	call	ccgchar
+   0ADF D1            [10] 1780 	pop 	d
+   0AE0 CD 00 00      [18] 1781 	call	ccne
+   0AE3 E5            [12] 1782 	push	h
+   0AE4 21 03 00      [10] 1783 	lxi 	h,#3
+   0AE7 39            [10] 1784 	dad 	sp
+   0AE8 CD 00 00      [18] 1785 	call	ccgint
+   0AEB E5            [12] 1786 	push	h
+   0AEC 21 09 00      [10] 1787 	lxi 	h,#9
+   0AEF D1            [10] 1788 	pop 	d
+   0AF0 CD 00 00      [18] 1789 	call	cclt
+   0AF3 D1            [10] 1790 	pop 	d
+   0AF4 CD 00 00      [18] 1791 	call	ccand
+   0AF7 7C            [ 4] 1792 	mov 	a,h
+   0AF8 B5            [ 4] 1793 	ora 	l
+   0AF9 CA 4D 0B      [10] 1794 	jz  	$68
+                           1795 ;        /* up to 8 chars into file name field */
+                           1796 ;        if ('.' == *str) break;
+   0AFC 21 2E 00      [10] 1797 	lxi 	h,#46
+   0AFF E5            [12] 1798 	push	h
+   0B00 21 07 00      [10] 1799 	lxi 	h,#7
+   0B03 39            [10] 1800 	dad 	sp
+   0B04 CD 00 00      [18] 1801 	call	ccgint
+   0B07 CD 00 00      [18] 1802 	call	ccgchar
+   0B0A D1            [10] 1803 	pop 	d
+   0B0B CD 00 00      [18] 1804 	call	cceq
+   0B0E 7C            [ 4] 1805 	mov 	a,h
+   0B0F B5            [ 4] 1806 	ora 	l
+   0B10 CA 16 0B      [10] 1807 	jz  	$69
+   0B13 C3 4D 0B      [10] 1808 	jmp 	$68
+                           1809 ;        fcb[i++] = toupper(*str++);
+   0B16                    1810 $69:
+   0B16 21 07 00      [10] 1811 	lxi 	h,#7
+   0B19 39            [10] 1812 	dad 	sp
+   0B1A CD 00 00      [18] 1813 	call	ccgint
+   0B1D E5            [12] 1814 	push	h
+   0B1E 21 03 00      [10] 1815 	lxi 	h,#3
+   0B21 39            [10] 1816 	dad 	sp
+   0B22 E5            [12] 1817 	push	h
+   0B23 CD 00 00      [18] 1818 	call	ccgint
+   0B26 23            [ 6] 1819 	inx 	h
+   0B27 D1            [10] 1820 	pop 	d
+   0B28 CD 00 00      [18] 1821 	call	ccpint
+   0B2B 2B            [ 6] 1822 	dcx 	h
+   0B2C D1            [10] 1823 	pop 	d
+   0B2D 19            [10] 1824 	dad 	d
+   0B2E E5            [12] 1825 	push	h
+   0B2F 21 07 00      [10] 1826 	lxi 	h,#7
+   0B32 39            [10] 1827 	dad 	sp
+   0B33 E5            [12] 1828 	push	h
+   0B34 CD 00 00      [18] 1829 	call	ccgint
+   0B37 23            [ 6] 1830 	inx 	h
+   0B38 D1            [10] 1831 	pop 	d
+   0B39 CD 00 00      [18] 1832 	call	ccpint
+   0B3C 2B            [ 6] 1833 	dcx 	h
+   0B3D CD 00 00      [18] 1834 	call	ccgchar
+   0B40 E5            [12] 1835 	push	h
+   0B41 3E 01         [ 7] 1836 	mvi 	a,#1
+   0B43 CD 00 00      [18] 1837 	call	toupper
+   0B46 C1            [10] 1838 	pop 	b
+   0B47 D1            [10] 1839 	pop 	d
+   0B48 7D            [ 4] 1840 	mov 	a,l
+   0B49 12            [ 7] 1841 	stax	d
+                           1842 ;    }
+   0B4A C3 D1 0A      [10] 1843 	jmp 	$67
+   0B4D                    1844 $68:
+                           1845 ;    /* strip off excess chars - up to '.' (beginning of
+                           1846 ;        extension name ) */
+                           1847 ;    while ((NULL != *str) & ((*str) != '.')) ++str;
+   0B4D                    1848 $70:
+   0B4D 21 00 00      [10] 1849 	lxi 	h,#0
+   0B50 E5            [12] 1850 	push	h
+   0B51 21 07 00      [10] 1851 	lxi 	h,#7
+   0B54 39            [10] 1852 	dad 	sp
+   0B55 CD 00 00      [18] 1853 	call	ccgint
+   0B58 CD 00 00      [18] 1854 	call	ccgchar
+   0B5B D1            [10] 1855 	pop 	d
+   0B5C CD 00 00      [18] 1856 	call	ccne
+   0B5F E5            [12] 1857 	push	h
+   0B60 21 07 00      [10] 1858 	lxi 	h,#7
+   0B63 39            [10] 1859 	dad 	sp
+   0B64 CD 00 00      [18] 1860 	call	ccgint
+   0B67 CD 00 00      [18] 1861 	call	ccgchar
+   0B6A E5            [12] 1862 	push	h
+   0B6B 21 2E 00      [10] 1863 	lxi 	h,#46
+   0B6E D1            [10] 1864 	pop 	d
+   0B6F CD 00 00      [18] 1865 	call	ccne
+   0B72 D1            [10] 1866 	pop 	d
+   0B73 CD 00 00      [18] 1867 	call	ccand
+   0B76 7C            [ 4] 1868 	mov 	a,h
+   0B77 B5            [ 4] 1869 	ora 	l
+   0B78 CA 8B 0B      [10] 1870 	jz  	$71
+   0B7B 21 05 00      [10] 1871 	lxi 	h,#5
+   0B7E 39            [10] 1872 	dad 	sp
+   0B7F E5            [12] 1873 	push	h
+   0B80 CD 00 00      [18] 1874 	call	ccgint
+   0B83 23            [ 6] 1875 	inx 	h
+   0B84 D1            [10] 1876 	pop 	d
+   0B85 CD 00 00      [18] 1877 	call	ccpint
+   0B88 C3 4D 0B      [10] 1878 	jmp 	$70
+   0B8B                    1879 $71:
+                           1880 ;    if (*str)
+   0B8B 21 05 00      [10] 1881 	lxi 	h,#5
+   0B8E 39            [10] 1882 	dad 	sp
+   0B8F CD 00 00      [18] 1883 	call	ccgint
+   0B92 CD 00 00      [18] 1884 	call	ccgchar
+   0B95 7C            [ 4] 1885 	mov 	a,h
+   0B96 B5            [ 4] 1886 	ora 	l
+   0B97 CA 0C 0C      [10] 1887 	jz  	$72
+                           1888 ;        /* '.' is first char of *str now */
+                           1889 ;        /* copy 3 chars of ext. if there */
+                           1890 ;        for (   /* first char of ext @ pos 9 (8+1 <tel:+1>)*/
+                           1891 ;            i = 8;
+   0B9A 21 01 00      [10] 1892 	lxi 	h,#1
+   0B9D 39            [10] 1893 	dad 	sp
+   0B9E E5            [12] 1894 	push	h
+   0B9F 21 08 00      [10] 1895 	lxi 	h,#8
+   0BA2 D1            [10] 1896 	pop 	d
+   0BA3 CD 00 00      [18] 1897 	call	ccpint
+   0BA6                    1898 $73:
+                           1899 ;            /* '.' is stripped by ++ 1st time */
+                           1900 ;            /* around */
+                           1901 ;            (NULL != *++str) & (12 > ++i);
+   0BA6 21 00 00      [10] 1902 	lxi 	h,#0
+   0BA9 E5            [12] 1903 	push	h
+   0BAA 21 07 00      [10] 1904 	lxi 	h,#7
+   0BAD 39            [10] 1905 	dad 	sp
+   0BAE E5            [12] 1906 	push	h
+   0BAF CD 00 00      [18] 1907 	call	ccgint
+   0BB2 23            [ 6] 1908 	inx 	h
+   0BB3 D1            [10] 1909 	pop 	d
+   0BB4 CD 00 00      [18] 1910 	call	ccpint
+   0BB7 CD 00 00      [18] 1911 	call	ccgchar
+   0BBA D1            [10] 1912 	pop 	d
+   0BBB CD 00 00      [18] 1913 	call	ccne
+   0BBE E5            [12] 1914 	push	h
+   0BBF 21 0C 00      [10] 1915 	lxi 	h,#12
+   0BC2 E5            [12] 1916 	push	h
+   0BC3 21 05 00      [10] 1917 	lxi 	h,#5
+   0BC6 39            [10] 1918 	dad 	sp
+   0BC7 E5            [12] 1919 	push	h
+   0BC8 CD 00 00      [18] 1920 	call	ccgint
+   0BCB 23            [ 6] 1921 	inx 	h
+   0BCC D1            [10] 1922 	pop 	d
+   0BCD CD 00 00      [18] 1923 	call	ccpint
+   0BD0 D1            [10] 1924 	pop 	d
+   0BD1 CD 00 00      [18] 1925 	call	ccgt
+   0BD4 D1            [10] 1926 	pop 	d
+   0BD5 CD 00 00      [18] 1927 	call	ccand
+   0BD8 7C            [ 4] 1928 	mov 	a,h
+   0BD9 B5            [ 4] 1929 	ora 	l
+   0BDA C2 09 0C      [10] 1930 	jnz 	$75
+   0BDD C3 0C 0C      [10] 1931 	jmp 	$76
+   0BE0                    1932 $74:
+                           1933 ;            fcb[i] = toupper(*str)
+   0BE0 21 07 00      [10] 1934 	lxi 	h,#7
+   0BE3 39            [10] 1935 	dad 	sp
+   0BE4 CD 00 00      [18] 1936 	call	ccgint
+   0BE7 E5            [12] 1937 	push	h
+   0BE8 21 03 00      [10] 1938 	lxi 	h,#3
+   0BEB 39            [10] 1939 	dad 	sp
+   0BEC CD 00 00      [18] 1940 	call	ccgint
+   0BEF D1            [10] 1941 	pop 	d
+   0BF0 19            [10] 1942 	dad 	d
+   0BF1 E5            [12] 1943 	push	h
+   0BF2 21 07 00      [10] 1944 	lxi 	h,#7
+   0BF5 39            [10] 1945 	dad 	sp
+   0BF6 CD 00 00      [18] 1946 	call	ccgint
+   0BF9 CD 00 00      [18] 1947 	call	ccgchar
+   0BFC E5            [12] 1948 	push	h
+   0BFD 3E 01         [ 7] 1949 	mvi 	a,#1
+   0BFF CD 00 00      [18] 1950 	call	toupper
+   0C02 C1            [10] 1951 	pop 	b
+                           1952 ;        );
+   0C03 D1            [10] 1953 	pop 	d
+   0C04 7D            [ 4] 1954 	mov 	a,l
+   0C05 12            [ 7] 1955 	stax	d
+   0C06 C3 A6 0B      [10] 1956 	jmp 	$73
+   0C09                    1957 $75:
+   0C09 C3 E0 0B      [10] 1958 	jmp 	$74
+   0C0C                    1959 $76:
+                           1960 ;        return fcb;
+   0C0C                    1961 $72:
+   0C0C 21 07 00      [10] 1962 	lxi 	h,#7
+   0C0F 39            [10] 1963 	dad 	sp
+   0C10 CD 00 00      [18] 1964 	call	ccgint
+   0C13 C3 16 0C      [10] 1965 	jmp 	$64
+                           1966 ;}
+   0C16                    1967 $64:
+   0C16 33            [ 6] 1968 	inx 	sp
+   0C17 C1            [10] 1969 	pop 	b
+   0C18 C9            [10] 1970 	ret
+                           1971 ;stdioinit() {
+   0C19                    1972 stdioinit:
+                           1973 ;    int i;
+   0C19 C5            [12] 1974 	push	b
+                           1975 ;    eofstdin = 0;
+   0C1A 21 00 00      [10] 1976 	lxi 	h,#0
+   0C1D 7D            [ 4] 1977 	mov 	a,l
+   0C1E 32 9C 08      [13] 1978 	sta 	eofstdin
+                           1979 ;    for (i=0; i<NBUFFS; modes[i++] = FREE);
+   0C21 21 00 00      [10] 1980 	lxi 	h,#0
+   0C24 39            [10] 1981 	dad 	sp
+   0C25 E5            [12] 1982 	push	h
+   0C26 21 00 00      [10] 1983 	lxi 	h,#0
+   0C29 D1            [10] 1984 	pop 	d
+   0C2A CD 00 00      [18] 1985 	call	ccpint
+   0C2D                    1986 $78:
+   0C2D 21 00 00      [10] 1987 	lxi 	h,#0
+   0C30 39            [10] 1988 	dad 	sp
+   0C31 CD 00 00      [18] 1989 	call	ccgint
+   0C34 E5            [12] 1990 	push	h
+   0C35 21 04 00      [10] 1991 	lxi 	h,#4
+   0C38 D1            [10] 1992 	pop 	d
+   0C39 CD 00 00      [18] 1993 	call	cclt
+   0C3C 7C            [ 4] 1994 	mov 	a,h
+   0C3D B5            [ 4] 1995 	ora 	l
+   0C3E C2 64 0C      [10] 1996 	jnz 	$80
+   0C41 C3 67 0C      [10] 1997 	jmp 	$81
+   0C44                    1998 $79:
+   0C44 21 8C 08      [10] 1999 	lxi 	h,modes
+   0C47 E5            [12] 2000 	push	h
+   0C48 21 02 00      [10] 2001 	lxi 	h,#2
+   0C4B 39            [10] 2002 	dad 	sp
+   0C4C E5            [12] 2003 	push	h
+   0C4D CD 00 00      [18] 2004 	call	ccgint
+   0C50 23            [ 6] 2005 	inx 	h
+   0C51 D1            [10] 2006 	pop 	d
+   0C52 CD 00 00      [18] 2007 	call	ccpint
+   0C55 2B            [ 6] 2008 	dcx 	h
+   0C56 29            [10] 2009 	dad 	h
+   0C57 D1            [10] 2010 	pop 	d
+   0C58 19            [10] 2011 	dad 	d
+   0C59 E5            [12] 2012 	push	h
+   0C5A 21 00 00      [10] 2013 	lxi 	h,#0
+   0C5D D1            [10] 2014 	pop 	d
+   0C5E CD 00 00      [18] 2015 	call	ccpint
+   0C61 C3 2D 0C      [10] 2016 	jmp 	$78
+   0C64                    2017 $80:
+   0C64 C3 44 0C      [10] 2018 	jmp 	$79
+   0C67                    2019 $81:
+                           2020 ;}
+   0C67                    2021 $77:
+   0C67 C1            [10] 2022 	pop 	b
+   0C68 C9            [10] 2023 	ret
+                           2024 ;fcbaddr(unit) int unit;
+   0C69                    2025 fcbaddr:
+                           2026 ;{
+                           2027 ;    /* returns address of fcb associated with given unit -
+                           2028 ;        unit taken with origin 0 (ie. std's not included) */
+                           2029 ;    return &fcbs[unit * FCBSIZ];
+   0C69 21 00 08      [10] 2030 	lxi 	h,fcbs
+   0C6C E5            [12] 2031 	push	h
+   0C6D 21 04 00      [10] 2032 	lxi 	h,#4
+   0C70 39            [10] 2033 	dad 	sp
+   0C71 CD 00 00      [18] 2034 	call	ccgint
+   0C74 E5            [12] 2035 	push	h
+   0C75 21 21 00      [10] 2036 	lxi 	h,#33
+   0C78 D1            [10] 2037 	pop 	d
+   0C79 CD 00 00      [18] 2038 	call	ccmul
+   0C7C D1            [10] 2039 	pop 	d
+   0C7D 19            [10] 2040 	dad 	d
+   0C7E C3 81 0C      [10] 2041 	jmp 	$82
+                           2042 ;}
+   0C81                    2043 $82:
+   0C81 C9            [10] 2044 	ret
+                           2045 ;buffaddr(unit) int unit;
+   0C82                    2046 buffaddr:
+                           2047 ;{
+                           2048 ;    return &buffs[unit * BUFSIZ];
+   0C82 21 00 00      [10] 2049 	lxi 	h,buffs
+   0C85 E5            [12] 2050 	push	h
+   0C86 21 04 00      [10] 2051 	lxi 	h,#4
+   0C89 39            [10] 2052 	dad 	sp
+   0C8A CD 00 00      [18] 2053 	call	ccgint
+   0C8D E5            [12] 2054 	push	h
+   0C8E 21 00 02      [10] 2055 	lxi 	h,#512
+   0C91 D1            [10] 2056 	pop 	d
+   0C92 CD 00 00      [18] 2057 	call	ccmul
+   0C95 D1            [10] 2058 	pop 	d
+   0C96 19            [10] 2059 	dad 	d
+   0C97 C3 9A 0C      [10] 2060 	jmp 	$83
+                           2061 ;}
+   0C9A                    2062 $83:
+   0C9A C9            [10] 2063 	ret
+                           2064 ;feof (unit) FILE *unit;
+   0C9B                    2065 feof:
+                           2066 ;{
+                           2067 ;    if ((unit == stdin) & eofstdin)
+   0C9B 21 02 00      [10] 2068 	lxi 	h,#2
+   0C9E 39            [10] 2069 	dad 	sp
+   0C9F CD 00 00      [18] 2070 	call	ccgint
+   0CA2 E5            [12] 2071 	push	h
+   0CA3 21 00 00      [10] 2072 	lxi 	h,#0
+   0CA6 D1            [10] 2073 	pop 	d
+   0CA7 CD 00 00      [18] 2074 	call	cceq
+   0CAA E5            [12] 2075 	push	h
+   0CAB 3A 9C 08      [13] 2076 	lda	eofstdin
+   0CAE CD 00 00      [18] 2077 	call	ccsxt
+   0CB1 D1            [10] 2078 	pop 	d
+   0CB2 CD 00 00      [18] 2079 	call	ccand
+   0CB5 7C            [ 4] 2080 	mov 	a,h
+   0CB6 B5            [ 4] 2081 	ora 	l
+   0CB7 CA C0 0C      [10] 2082 	jz  	$85
+                           2083 ;        return 1;
+   0CBA 21 01 00      [10] 2084 	lxi 	h,#1
+   0CBD C3 F2 0C      [10] 2085 	jmp 	$84
+                           2086 ;    if (modes[unit - UNIT_OFFSET] == READ_EOF)
+   0CC0                    2087 $85:
+   0CC0 21 8C 08      [10] 2088 	lxi 	h,modes
+   0CC3 E5            [12] 2089 	push	h
+   0CC4 21 04 00      [10] 2090 	lxi 	h,#4
+   0CC7 39            [10] 2091 	dad 	sp
+   0CC8 CD 00 00      [18] 2092 	call	ccgint
+   0CCB E5            [12] 2093 	push	h
+   0CCC 21 03 00      [10] 2094 	lxi 	h,#3
+   0CCF D1            [10] 2095 	pop 	d
+   0CD0 CD 00 00      [18] 2096 	call	ccsub
+   0CD3 29            [10] 2097 	dad 	h
+   0CD4 D1            [10] 2098 	pop 	d
+   0CD5 19            [10] 2099 	dad 	d
+   0CD6 CD 00 00      [18] 2100 	call	ccgint
+   0CD9 E5            [12] 2101 	push	h
+   0CDA 21 03 00      [10] 2102 	lxi 	h,#3
+   0CDD D1            [10] 2103 	pop 	d
+   0CDE CD 00 00      [18] 2104 	call	cceq
+   0CE1 7C            [ 4] 2105 	mov 	a,h
+   0CE2 B5            [ 4] 2106 	ora 	l
+   0CE3 CA EC 0C      [10] 2107 	jz  	$86
+                           2108 ;        return 1;
+   0CE6 21 01 00      [10] 2109 	lxi 	h,#1
+   0CE9 C3 F2 0C      [10] 2110 	jmp 	$84
+                           2111 ;    return 0;
+   0CEC                    2112 $86:
+   0CEC 21 00 00      [10] 2113 	lxi 	h,#0
+   0CEF C3 F2 0C      [10] 2114 	jmp 	$84
+                           2115 ;}
+   0CF2                    2116 $84:
+   0CF2 C9            [10] 2117 	ret
+                           2118 		.area  SMALLC_GENERATED_DATA  (REL,CON,DSEG)
+                           2119 	.globl	buffs
+   0000                    2120 buffs:
+   0000 00 00 00 00 00 00  2121 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   000A 00 00 00 00 00 00  2122 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0014 00 00 00 00 00 00  2123 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   001E 00 00 00 00 00 00  2124 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0028 00 00 00 00 00 00  2125 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0032 00 00 00 00 00 00  2126 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   003C 00 00 00 00 00 00  2127 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0046 00 00 00 00 00 00  2128 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0050 00 00 00 00 00 00  2129 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   005A 00 00 00 00 00 00  2130 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0064 00 00 00 00 00 00  2131 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   006E 00 00 00 00 00 00  2132 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0078 00 00 00 00 00 00  2133 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0082 00 00 00 00 00 00  2134 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   008C 00 00 00 00 00 00  2135 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0096 00 00 00 00 00 00  2136 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00A0 00 00 00 00 00 00  2137 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00AA 00 00 00 00 00 00  2138 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00B4 00 00 00 00 00 00  2139 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00BE 00 00 00 00 00 00  2140 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00C8 00 00 00 00 00 00  2141 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00D2 00 00 00 00 00 00  2142 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00DC 00 00 00 00 00 00  2143 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00E6 00 00 00 00 00 00  2144 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00F0 00 00 00 00 00 00  2145 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   00FA 00 00 00 00 00 00  2146 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0104 00 00 00 00 00 00  2147 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   010E 00 00 00 00 00 00  2148 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0118 00 00 00 00 00 00  2149 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0122 00 00 00 00 00 00  2150 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   012C 00 00 00 00 00 00  2151 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0136 00 00 00 00 00 00  2152 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0140 00 00 00 00 00 00  2153 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   014A 00 00 00 00 00 00  2154 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0154 00 00 00 00 00 00  2155 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   015E 00 00 00 00 00 00  2156 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0168 00 00 00 00 00 00  2157 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0172 00 00 00 00 00 00  2158 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   017C 00 00 00 00 00 00  2159 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0186 00 00 00 00 00 00  2160 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0190 00 00 00 00 00 00  2161 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   019A 00 00 00 00 00 00  2162 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01A4 00 00 00 00 00 00  2163 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01AE 00 00 00 00 00 00  2164 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01B8 00 00 00 00 00 00  2165 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01C2 00 00 00 00 00 00  2166 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01CC 00 00 00 00 00 00  2167 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01D6 00 00 00 00 00 00  2168 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01E0 00 00 00 00 00 00  2169 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01EA 00 00 00 00 00 00  2170 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01F4 00 00 00 00 00 00  2171 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   01FE 00 00 00 00 00 00  2172 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0208 00 00 00 00 00 00  2173 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0212 00 00 00 00 00 00  2174 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   021C 00 00 00 00 00 00  2175 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0226 00 00 00 00 00 00  2176 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0230 00 00 00 00 00 00  2177 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   023A 00 00 00 00 00 00  2178 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0244 00 00 00 00 00 00  2179 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   024E 00 00 00 00 00 00  2180 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0258 00 00 00 00 00 00  2181 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0262 00 00 00 00 00 00  2182 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   026C 00 00 00 00 00 00  2183 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0276 00 00 00 00 00 00  2184 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0280 00 00 00 00 00 00  2185 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   028A 00 00 00 00 00 00  2186 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0294 00 00 00 00 00 00  2187 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   029E 00 00 00 00 00 00  2188 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02A8 00 00 00 00 00 00  2189 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02B2 00 00 00 00 00 00  2190 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02BC 00 00 00 00 00 00  2191 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02C6 00 00 00 00 00 00  2192 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02D0 00 00 00 00 00 00  2193 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02DA 00 00 00 00 00 00  2194 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02E4 00 00 00 00 00 00  2195 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02EE 00 00 00 00 00 00  2196 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   02F8 00 00 00 00 00 00  2197 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0302 00 00 00 00 00 00  2198 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   030C 00 00 00 00 00 00  2199 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0316 00 00 00 00 00 00  2200 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0320 00 00 00 00 00 00  2201 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   032A 00 00 00 00 00 00  2202 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0334 00 00 00 00 00 00  2203 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   033E 00 00 00 00 00 00  2204 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0348 00 00 00 00 00 00  2205 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0352 00 00 00 00 00 00  2206 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   035C 00 00 00 00 00 00  2207 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0366 00 00 00 00 00 00  2208 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0370 00 00 00 00 00 00  2209 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   037A 00 00 00 00 00 00  2210 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0384 00 00 00 00 00 00  2211 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   038E 00 00 00 00 00 00  2212 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0398 00 00 00 00 00 00  2213 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03A2 00 00 00 00 00 00  2214 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03AC 00 00 00 00 00 00  2215 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03B6 00 00 00 00 00 00  2216 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03C0 00 00 00 00 00 00  2217 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03CA 00 00 00 00 00 00  2218 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03D4 00 00 00 00 00 00  2219 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03DE 00 00 00 00 00 00  2220 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03E8 00 00 00 00 00 00  2221 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03F2 00 00 00 00 00 00  2222 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   03FC 00 00 00 00 00 00  2223 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0406 00 00 00 00 00 00  2224 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0410 00 00 00 00 00 00  2225 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   041A 00 00 00 00 00 00  2226 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0424 00 00 00 00 00 00  2227 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   042E 00 00 00 00 00 00  2228 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0438 00 00 00 00 00 00  2229 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0442 00 00 00 00 00 00  2230 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   044C 00 00 00 00 00 00  2231 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0456 00 00 00 00 00 00  2232 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0460 00 00 00 00 00 00  2233 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   046A 00 00 00 00 00 00  2234 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0474 00 00 00 00 00 00  2235 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   047E 00 00 00 00 00 00  2236 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0488 00 00 00 00 00 00  2237 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0492 00 00 00 00 00 00  2238 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   049C 00 00 00 00 00 00  2239 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04A6 00 00 00 00 00 00  2240 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04B0 00 00 00 00 00 00  2241 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04BA 00 00 00 00 00 00  2242 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04C4 00 00 00 00 00 00  2243 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04CE 00 00 00 00 00 00  2244 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04D8 00 00 00 00 00 00  2245 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04E2 00 00 00 00 00 00  2246 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04EC 00 00 00 00 00 00  2247 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   04F6 00 00 00 00 00 00  2248 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0500 00 00 00 00 00 00  2249 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   050A 00 00 00 00 00 00  2250 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0514 00 00 00 00 00 00  2251 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   051E 00 00 00 00 00 00  2252 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0528 00 00 00 00 00 00  2253 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0532 00 00 00 00 00 00  2254 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   053C 00 00 00 00 00 00  2255 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0546 00 00 00 00 00 00  2256 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0550 00 00 00 00 00 00  2257 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   055A 00 00 00 00 00 00  2258 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0564 00 00 00 00 00 00  2259 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   056E 00 00 00 00 00 00  2260 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0578 00 00 00 00 00 00  2261 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0582 00 00 00 00 00 00  2262 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   058C 00 00 00 00 00 00  2263 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0596 00 00 00 00 00 00  2264 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05A0 00 00 00 00 00 00  2265 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05AA 00 00 00 00 00 00  2266 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05B4 00 00 00 00 00 00  2267 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05BE 00 00 00 00 00 00  2268 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05C8 00 00 00 00 00 00  2269 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05D2 00 00 00 00 00 00  2270 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05DC 00 00 00 00 00 00  2271 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05E6 00 00 00 00 00 00  2272 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05F0 00 00 00 00 00 00  2273 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   05FA 00 00 00 00 00 00  2274 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0604 00 00 00 00 00 00  2275 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   060E 00 00 00 00 00 00  2276 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0618 00 00 00 00 00 00  2277 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0622 00 00 00 00 00 00  2278 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   062C 00 00 00 00 00 00  2279 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0636 00 00 00 00 00 00  2280 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0640 00 00 00 00 00 00  2281 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   064A 00 00 00 00 00 00  2282 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0654 00 00 00 00 00 00  2283 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   065E 00 00 00 00 00 00  2284 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0668 00 00 00 00 00 00  2285 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0672 00 00 00 00 00 00  2286 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   067C 00 00 00 00 00 00  2287 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0686 00 00 00 00 00 00  2288 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0690 00 00 00 00 00 00  2289 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   069A 00 00 00 00 00 00  2290 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06A4 00 00 00 00 00 00  2291 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06AE 00 00 00 00 00 00  2292 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06B8 00 00 00 00 00 00  2293 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06C2 00 00 00 00 00 00  2294 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06CC 00 00 00 00 00 00  2295 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06D6 00 00 00 00 00 00  2296 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06E0 00 00 00 00 00 00  2297 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06EA 00 00 00 00 00 00  2298 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06F4 00 00 00 00 00 00  2299 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   06FE 00 00 00 00 00 00  2300 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0708 00 00 00 00 00 00  2301 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0712 00 00 00 00 00 00  2302 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   071C 00 00 00 00 00 00  2303 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0726 00 00 00 00 00 00  2304 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0730 00 00 00 00 00 00  2305 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   073A 00 00 00 00 00 00  2306 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0744 00 00 00 00 00 00  2307 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   074E 00 00 00 00 00 00  2308 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0758 00 00 00 00 00 00  2309 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0762 00 00 00 00 00 00  2310 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   076C 00 00 00 00 00 00  2311 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0776 00 00 00 00 00 00  2312 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0780 00 00 00 00 00 00  2313 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   078A 00 00 00 00 00 00  2314 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0794 00 00 00 00 00 00  2315 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   079E 00 00 00 00 00 00  2316 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07A8 00 00 00 00 00 00  2317 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07B2 00 00 00 00 00 00  2318 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07BC 00 00 00 00 00 00  2319 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07C6 00 00 00 00 00 00  2320 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07D0 00 00 00 00 00 00  2321 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07DA 00 00 00 00 00 00  2322 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07E4 00 00 00 00 00 00  2323 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07EE 00 00 00 00 00 00  2324 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   07F8 00 00 00 00 00 00  2325 	.db	#0,#0,#0,#0,#0,#0,#0,#0
+        00 00
+                           2326 	.globl	fcbs
+   0800                    2327 fcbs:
+   0800 00 00 00 00 00 00  2328 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   080A 00 00 00 00 00 00  2329 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0814 00 00 00 00 00 00  2330 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   081E 00 00 00 00 00 00  2331 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0828 00 00 00 00 00 00  2332 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0832 00 00 00 00 00 00  2333 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   083C 00 00 00 00 00 00  2334 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0846 00 00 00 00 00 00  2335 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0850 00 00 00 00 00 00  2336 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   085A 00 00 00 00 00 00  2337 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0864 00 00 00 00 00 00  2338 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   086E 00 00 00 00 00 00  2339 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0878 00 00 00 00 00 00  2340 	.db	#0,#0,#0,#0,#0,#0,#0,#0,#0,#0
+        00 00 00 00
+   0882 00 00              2341 	.db	#0,#0
+                           2342 	.globl	bptr
+   0884                    2343 bptr:
+   0884 00 00 00 00 00 00  2344 	.dw	#0,#0,#0,#0
+        00 00
+                           2345 	.globl	modes
+   088C                    2346 modes:
+   088C 00 00 00 00 00 00  2347 	.dw	#0,#0,#0,#0
+        00 00
+                           2348 	.globl	eptr
+   0894                    2349 eptr:
+   0894 00 00 00 00 00 00  2350 	.dw	#0,#0,#0,#0
+        00 00
+                           2351 	.globl	eofstdin
+   089C                    2352 eofstdin:
+   089C 00                 2353 	.db	#0
+                           2354 	.globl	fgetc
+                           2355 	.globl	Xfgetc
+                           2356 	;extrn	bdos1
+                           2357 	;extrn	exit
+                           2358 	;extrn	bdos
+                           2359 	.globl	fcbaddr
+                           2360 	.globl	buffaddr
+                           2361 	.globl	fclose
+                           2362 	.globl	fflush
+                           2363 	.globl	fputc
+                           2364 	.globl	allocunitno
+                           2365 	.globl	fopen
+                           2366 	.globl	movname
+                           2367 	.globl	clearfcb
+                           2368 	;extrn	toupper
+                           2369 	.globl	stdioinit
+                           2370 	.globl	feof
+                           2371 
+                           2372 ;0 error(s) in compilation
+                           2373 ;	literal pool:0
+                           2374 ;	global pool:23
+                           2375 ;	Macro pool:398
+                           2376 	;	.end

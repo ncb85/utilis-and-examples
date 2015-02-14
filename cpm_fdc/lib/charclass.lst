@@ -1,0 +1,308 @@
+                              1 ; Small C 8080
+                              2 ;	Coder (2.4,84/11/27)
+                              3 ;	Front End (2.7,84/11/28)
+                              4 ;	Front End for ASXXXX (2.8,13/01/20)
+                              5 		;program area SMALLC_GENERATED is RELOCATABLE
+                              6 		.module SMALLC_GENERATED
+                              7 		.list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
+                              8 		.nlist  (pag)
+                              9 		.area  SMALLC_GENERATED  (REL,CON,CSEG)
+                             10 ;isalpha(c) char c;{
+   0000                      11 isalpha:
+                             12 ;        if ((c >= 'a' & c <= 'z') |
+   0000 21 02 00      [10]   13 	lxi 	h,#2
+   0003 39            [10]   14 	dad 	sp
+   0004 CD 00 00      [18]   15 	call	ccgchar
+   0007 E5            [12]   16 	push	h
+   0008 21 61 00      [10]   17 	lxi 	h,#97
+   000B D1            [10]   18 	pop 	d
+   000C CD 00 00      [18]   19 	call	ccge
+   000F E5            [12]   20 	push	h
+   0010 21 04 00      [10]   21 	lxi 	h,#4
+   0013 39            [10]   22 	dad 	sp
+   0014 CD 00 00      [18]   23 	call	ccgchar
+   0017 E5            [12]   24 	push	h
+   0018 21 7A 00      [10]   25 	lxi 	h,#122
+   001B D1            [10]   26 	pop 	d
+   001C CD 00 00      [18]   27 	call	ccle
+   001F D1            [10]   28 	pop 	d
+   0020 CD 00 00      [18]   29 	call	ccand
+   0023 E5            [12]   30 	push	h
+                             31 ;            (c >= 'A' & c <= 'Z'))    return(1);
+   0024 21 04 00      [10]   32 	lxi 	h,#4
+   0027 39            [10]   33 	dad 	sp
+   0028 CD 00 00      [18]   34 	call	ccgchar
+   002B E5            [12]   35 	push	h
+   002C 21 41 00      [10]   36 	lxi 	h,#65
+   002F D1            [10]   37 	pop 	d
+   0030 CD 00 00      [18]   38 	call	ccge
+   0033 E5            [12]   39 	push	h
+   0034 21 06 00      [10]   40 	lxi 	h,#6
+   0037 39            [10]   41 	dad 	sp
+   0038 CD 00 00      [18]   42 	call	ccgchar
+   003B E5            [12]   43 	push	h
+   003C 21 5A 00      [10]   44 	lxi 	h,#90
+   003F D1            [10]   45 	pop 	d
+   0040 CD 00 00      [18]   46 	call	ccle
+   0043 D1            [10]   47 	pop 	d
+   0044 CD 00 00      [18]   48 	call	ccand
+   0047 D1            [10]   49 	pop 	d
+   0048 CD 00 00      [18]   50 	call	ccor
+   004B 7C            [ 4]   51 	mov 	a,h
+   004C B5            [ 4]   52 	ora 	l
+   004D CA 59 00      [10]   53 	jz  	$2
+   0050 21 01 00      [10]   54 	lxi 	h,#1
+   0053 C3 5F 00      [10]   55 	jmp 	$1
+                             56 ;        else                            return(0);
+   0056 C3 5F 00      [10]   57 	jmp 	$3
+   0059                      58 $2:
+   0059 21 00 00      [10]   59 	lxi 	h,#0
+   005C C3 5F 00      [10]   60 	jmp 	$1
+   005F                      61 $3:
+                             62 ;        }
+   005F                      63 $1:
+   005F C9            [10]   64 	ret
+                             65 ;isupper(c) char c;{
+   0060                      66 isupper:
+                             67 ;        if (c >= 'A' & c <= 'Z')      return(1);
+   0060 21 02 00      [10]   68 	lxi 	h,#2
+   0063 39            [10]   69 	dad 	sp
+   0064 CD 00 00      [18]   70 	call	ccgchar
+   0067 E5            [12]   71 	push	h
+   0068 21 41 00      [10]   72 	lxi 	h,#65
+   006B D1            [10]   73 	pop 	d
+   006C CD 00 00      [18]   74 	call	ccge
+   006F E5            [12]   75 	push	h
+   0070 21 04 00      [10]   76 	lxi 	h,#4
+   0073 39            [10]   77 	dad 	sp
+   0074 CD 00 00      [18]   78 	call	ccgchar
+   0077 E5            [12]   79 	push	h
+   0078 21 5A 00      [10]   80 	lxi 	h,#90
+   007B D1            [10]   81 	pop 	d
+   007C CD 00 00      [18]   82 	call	ccle
+   007F D1            [10]   83 	pop 	d
+   0080 CD 00 00      [18]   84 	call	ccand
+   0083 7C            [ 4]   85 	mov 	a,h
+   0084 B5            [ 4]   86 	ora 	l
+   0085 CA 91 00      [10]   87 	jz  	$5
+   0088 21 01 00      [10]   88 	lxi 	h,#1
+   008B C3 97 00      [10]   89 	jmp 	$4
+                             90 ;        else                            return(0);
+   008E C3 97 00      [10]   91 	jmp 	$6
+   0091                      92 $5:
+   0091 21 00 00      [10]   93 	lxi 	h,#0
+   0094 C3 97 00      [10]   94 	jmp 	$4
+   0097                      95 $6:
+                             96 ;        }
+   0097                      97 $4:
+   0097 C9            [10]   98 	ret
+                             99 ;islower(c) char c;{
+   0098                     100 islower:
+                            101 ;        if (c >= 'a' & c <= 'z')      return(1);
+   0098 21 02 00      [10]  102 	lxi 	h,#2
+   009B 39            [10]  103 	dad 	sp
+   009C CD 00 00      [18]  104 	call	ccgchar
+   009F E5            [12]  105 	push	h
+   00A0 21 61 00      [10]  106 	lxi 	h,#97
+   00A3 D1            [10]  107 	pop 	d
+   00A4 CD 00 00      [18]  108 	call	ccge
+   00A7 E5            [12]  109 	push	h
+   00A8 21 04 00      [10]  110 	lxi 	h,#4
+   00AB 39            [10]  111 	dad 	sp
+   00AC CD 00 00      [18]  112 	call	ccgchar
+   00AF E5            [12]  113 	push	h
+   00B0 21 7A 00      [10]  114 	lxi 	h,#122
+   00B3 D1            [10]  115 	pop 	d
+   00B4 CD 00 00      [18]  116 	call	ccle
+   00B7 D1            [10]  117 	pop 	d
+   00B8 CD 00 00      [18]  118 	call	ccand
+   00BB 7C            [ 4]  119 	mov 	a,h
+   00BC B5            [ 4]  120 	ora 	l
+   00BD CA C9 00      [10]  121 	jz  	$8
+   00C0 21 01 00      [10]  122 	lxi 	h,#1
+   00C3 C3 CF 00      [10]  123 	jmp 	$7
+                            124 ;        else                            return(0);
+   00C6 C3 CF 00      [10]  125 	jmp 	$9
+   00C9                     126 $8:
+   00C9 21 00 00      [10]  127 	lxi 	h,#0
+   00CC C3 CF 00      [10]  128 	jmp 	$7
+   00CF                     129 $9:
+                            130 ;        }
+   00CF                     131 $7:
+   00CF C9            [10]  132 	ret
+                            133 ;isdigit(c) char c;{
+   00D0                     134 isdigit:
+                            135 ;        if (c >= '0' & c <= '9')      return(1);
+   00D0 21 02 00      [10]  136 	lxi 	h,#2
+   00D3 39            [10]  137 	dad 	sp
+   00D4 CD 00 00      [18]  138 	call	ccgchar
+   00D7 E5            [12]  139 	push	h
+   00D8 21 30 00      [10]  140 	lxi 	h,#48
+   00DB D1            [10]  141 	pop 	d
+   00DC CD 00 00      [18]  142 	call	ccge
+   00DF E5            [12]  143 	push	h
+   00E0 21 04 00      [10]  144 	lxi 	h,#4
+   00E3 39            [10]  145 	dad 	sp
+   00E4 CD 00 00      [18]  146 	call	ccgchar
+   00E7 E5            [12]  147 	push	h
+   00E8 21 39 00      [10]  148 	lxi 	h,#57
+   00EB D1            [10]  149 	pop 	d
+   00EC CD 00 00      [18]  150 	call	ccle
+   00EF D1            [10]  151 	pop 	d
+   00F0 CD 00 00      [18]  152 	call	ccand
+   00F3 7C            [ 4]  153 	mov 	a,h
+   00F4 B5            [ 4]  154 	ora 	l
+   00F5 CA 01 01      [10]  155 	jz  	$11
+   00F8 21 01 00      [10]  156 	lxi 	h,#1
+   00FB C3 07 01      [10]  157 	jmp 	$10
+                            158 ;        else                            return(0);
+   00FE C3 07 01      [10]  159 	jmp 	$12
+   0101                     160 $11:
+   0101 21 00 00      [10]  161 	lxi 	h,#0
+   0104 C3 07 01      [10]  162 	jmp 	$10
+   0107                     163 $12:
+                            164 ;        }
+   0107                     165 $10:
+   0107 C9            [10]  166 	ret
+                            167 ;isspace(c) char c;{
+   0108                     168 isspace:
+                            169 ;        if (c == ' ' | c == '\t' | c == '\n')   return(1);
+   0108 21 02 00      [10]  170 	lxi 	h,#2
+   010B 39            [10]  171 	dad 	sp
+   010C CD 00 00      [18]  172 	call	ccgchar
+   010F E5            [12]  173 	push	h
+   0110 21 20 00      [10]  174 	lxi 	h,#32
+   0113 D1            [10]  175 	pop 	d
+   0114 CD 00 00      [18]  176 	call	cceq
+   0117 E5            [12]  177 	push	h
+   0118 21 04 00      [10]  178 	lxi 	h,#4
+   011B 39            [10]  179 	dad 	sp
+   011C CD 00 00      [18]  180 	call	ccgchar
+   011F E5            [12]  181 	push	h
+   0120 21 09 00      [10]  182 	lxi 	h,#9
+   0123 D1            [10]  183 	pop 	d
+   0124 CD 00 00      [18]  184 	call	cceq
+   0127 D1            [10]  185 	pop 	d
+   0128 CD 00 00      [18]  186 	call	ccor
+   012B E5            [12]  187 	push	h
+   012C 21 04 00      [10]  188 	lxi 	h,#4
+   012F 39            [10]  189 	dad 	sp
+   0130 CD 00 00      [18]  190 	call	ccgchar
+   0133 E5            [12]  191 	push	h
+   0134 21 0A 00      [10]  192 	lxi 	h,#10
+   0137 D1            [10]  193 	pop 	d
+   0138 CD 00 00      [18]  194 	call	cceq
+   013B D1            [10]  195 	pop 	d
+   013C CD 00 00      [18]  196 	call	ccor
+   013F 7C            [ 4]  197 	mov 	a,h
+   0140 B5            [ 4]  198 	ora 	l
+   0141 CA 4D 01      [10]  199 	jz  	$14
+   0144 21 01 00      [10]  200 	lxi 	h,#1
+   0147 C3 53 01      [10]  201 	jmp 	$13
+                            202 ;        else                                    return(0);
+   014A C3 53 01      [10]  203 	jmp 	$15
+   014D                     204 $14:
+   014D 21 00 00      [10]  205 	lxi 	h,#0
+   0150 C3 53 01      [10]  206 	jmp 	$13
+   0153                     207 $15:
+                            208 ;        }
+   0153                     209 $13:
+   0153 C9            [10]  210 	ret
+                            211 ;toupper(c) char c;{
+   0154                     212 toupper:
+                            213 ;        return ((c >= 'a' && c <= 'z') ? c - 32: c);
+   0154 21 02 00      [10]  214 	lxi 	h,#2
+   0157 39            [10]  215 	dad 	sp
+   0158 CD 00 00      [18]  216 	call	ccgchar
+   015B E5            [12]  217 	push	h
+   015C 21 61 00      [10]  218 	lxi 	h,#97
+   015F D1            [10]  219 	pop 	d
+   0160 CD 00 00      [18]  220 	call	ccge
+   0163 7C            [ 4]  221 	mov 	a,h
+   0164 B5            [ 4]  222 	ora 	l
+   0165 CA 77 01      [10]  223 	jz  	$17
+   0168 21 02 00      [10]  224 	lxi 	h,#2
+   016B 39            [10]  225 	dad 	sp
+   016C CD 00 00      [18]  226 	call	ccgchar
+   016F E5            [12]  227 	push	h
+   0170 21 7A 00      [10]  228 	lxi 	h,#122
+   0173 D1            [10]  229 	pop 	d
+   0174 CD 00 00      [18]  230 	call	ccle
+   0177                     231 $17:
+   0177 CD 00 00      [18]  232 	call	ccbool
+   017A 7C            [ 4]  233 	mov 	a,h
+   017B B5            [ 4]  234 	ora 	l
+   017C CA 91 01      [10]  235 	jz  	$18
+   017F 21 02 00      [10]  236 	lxi 	h,#2
+   0182 39            [10]  237 	dad 	sp
+   0183 CD 00 00      [18]  238 	call	ccgchar
+   0186 E5            [12]  239 	push	h
+   0187 21 20 00      [10]  240 	lxi 	h,#32
+   018A D1            [10]  241 	pop 	d
+   018B CD 00 00      [18]  242 	call	ccsub
+   018E C3 98 01      [10]  243 	jmp 	$19
+   0191                     244 $18:
+   0191 21 02 00      [10]  245 	lxi 	h,#2
+   0194 39            [10]  246 	dad 	sp
+   0195 CD 00 00      [18]  247 	call	ccgchar
+   0198                     248 $19:
+   0198 C3 9B 01      [10]  249 	jmp 	$16
+                            250 ;        }
+   019B                     251 $16:
+   019B C9            [10]  252 	ret
+                            253 ;tolower(c) char c;{
+   019C                     254 tolower:
+                            255 ;        return((c >= 'A' && c <= 'Z') ? c + 32: c);
+   019C 21 02 00      [10]  256 	lxi 	h,#2
+   019F 39            [10]  257 	dad 	sp
+   01A0 CD 00 00      [18]  258 	call	ccgchar
+   01A3 E5            [12]  259 	push	h
+   01A4 21 41 00      [10]  260 	lxi 	h,#65
+   01A7 D1            [10]  261 	pop 	d
+   01A8 CD 00 00      [18]  262 	call	ccge
+   01AB 7C            [ 4]  263 	mov 	a,h
+   01AC B5            [ 4]  264 	ora 	l
+   01AD CA BF 01      [10]  265 	jz  	$21
+   01B0 21 02 00      [10]  266 	lxi 	h,#2
+   01B3 39            [10]  267 	dad 	sp
+   01B4 CD 00 00      [18]  268 	call	ccgchar
+   01B7 E5            [12]  269 	push	h
+   01B8 21 5A 00      [10]  270 	lxi 	h,#90
+   01BB D1            [10]  271 	pop 	d
+   01BC CD 00 00      [18]  272 	call	ccle
+   01BF                     273 $21:
+   01BF CD 00 00      [18]  274 	call	ccbool
+   01C2 7C            [ 4]  275 	mov 	a,h
+   01C3 B5            [ 4]  276 	ora 	l
+   01C4 CA D7 01      [10]  277 	jz  	$22
+   01C7 21 02 00      [10]  278 	lxi 	h,#2
+   01CA 39            [10]  279 	dad 	sp
+   01CB CD 00 00      [18]  280 	call	ccgchar
+   01CE E5            [12]  281 	push	h
+   01CF 21 20 00      [10]  282 	lxi 	h,#32
+   01D2 D1            [10]  283 	pop 	d
+   01D3 19            [10]  284 	dad 	d
+   01D4 C3 DE 01      [10]  285 	jmp 	$23
+   01D7                     286 $22:
+   01D7 21 02 00      [10]  287 	lxi 	h,#2
+   01DA 39            [10]  288 	dad 	sp
+   01DB CD 00 00      [18]  289 	call	ccgchar
+   01DE                     290 $23:
+   01DE C3 E1 01      [10]  291 	jmp 	$20
+                            292 ;        }
+   01E1                     293 $20:
+   01E1 C9            [10]  294 	ret
+                            295 		.area  SMALLC_GENERATED_DATA  (REL,CON,DSEG)
+                            296 	.globl	isalpha
+                            297 	.globl	isupper
+                            298 	.globl	islower
+                            299 	.globl	isdigit
+                            300 	.globl	isspace
+                            301 	.globl	toupper
+                            302 	.globl	tolower
+                            303 
+                            304 ;0 error(s) in compilation
+                            305 ;	literal pool:0
+                            306 ;	global pool:7
+                            307 ;	Macro pool:51
+                            308 	;	.end

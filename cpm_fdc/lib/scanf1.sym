@@ -1,0 +1,53 @@
+ASxxxx Assembler V05.00  (Intel 8085), page 1.
+Hexidecimal [16-Bits]
+
+Symbol Table
+
+  2 $1                 0509 R   |   2 $10                0158 R
+  2 $11                017E R   |   2 $12                01B0 R
+  2 $13                01A7 R   |   2 $14                01B0 R
+  3 $15                0014 R   |   2 $16                04EF R
+  2 $17                01CC R   |   2 $18                01E8 R
+  2 $19                01E8 R   |   2 $2                 003D R
+  2 $20                0265 R   |   2 $21                0227 R
+  2 $22                0240 R   |   2 $23                0262 R
+  2 $24                0276 R   |   3 $25                0000 R
+  2 $26                032D R   |   2 $27                0284 R
+  2 $28                02AB R   |   2 $29                02D2 R
+  2 $3                 04FF R   |   2 $30                02F9 R
+  2 $31                0320 R   |   2 $32                0345 R
+  2 $33                04CD R   |   2 $34                0379 R
+  2 $35                0393 R   |   2 $36                03DF R
+  2 $37                03D3 R   |   2 $38                03DF R
+  2 $39                03FD R   |   2 $4                 0072 R
+  2 $40                0428 R   |   2 $41                0467 R
+  2 $42                0453 R   |   2 $43                0467 R
+  2 $44                04A4 R   |   2 $45                0492 R
+  2 $5                 0093 R   |   2 $6                 00D0 R
+  2 $7                 00F5 R   |   2 $8                 0133 R
+  2 $9                 0158 R   |     .__.$$$.       =   2710 L
+    .__.ABS.       =   0000 G   |     .__.CPU.       =   0000 L
+    .__.H$L.       =   0000 L   |     _Oldch             **** GX
+    _getc              **** GX  |   2 _scanf             0000 GR
+    _ungetc            **** GX  |     ccbool             **** GX
+    cccase             **** GX  |     cceq               **** GX
+    ccgchar            **** GX  |     ccge               **** GX
+    ccgint             **** GX  |     cclneg             **** GX
+    cclt               **** GX  |     ccmul              **** GX
+    ccne               **** GX  |     ccneg              **** GX
+    ccpint             **** GX  |     ccsub              **** GX
+    ccugt              **** GX  |     isspace            **** GX
+    utoi               **** GX
+
+ASxxxx Assembler V05.00  (Intel 8085), page 2.
+Hexidecimal [16-Bits]
+
+Area Table
+
+[_CSEG]
+   0 _CODE            size    0   flags C080
+   2 SMALLC_GENERAT   size  511   flags 4D00
+   3 SMALLC_GENERAT   size   20   flags 4D40
+[_DSEG]
+   1 _DATA            size    0   flags C0C0
+

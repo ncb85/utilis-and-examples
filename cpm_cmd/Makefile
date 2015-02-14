@@ -1,0 +1,60 @@
+REMOVE = rm -f
+RENAME = mv
+COMPILER = scc8080
+ASSEMBLER = as8085
+LINKER = aslink
+SORTHEX = sort -k1.8,1.9 -k1.4,1.7
+PACKHEX = packihx
+HEX2COM = hex2bin -e com -c
+
+STARTADDRESS = 0x0100
+# Compiler options
+SCCFLAGS = -t -a -u
+#SCCFLAGS = -t -a
+
+# Assembler options
+AS8085FLAGS = -l -o -s -p -g
+
+# These settings control where the compiler will place the code and variables in memory.
+ASLINKFLAGS = -n -i -u -o -m -b CRET=$(STARTADDRESS) -b LIB8080=crtsoend+$(STARTADDRESS) -b SMALLC_GENERATED=crun8080_end+crtsoend+$(STARTADDRESS)
+
+# Target file name (without extension).
+TARGET = argtst
+LIB_SRC = main.c bdos.c chio8080.c arglist.c charclass.c
+ASM_SRC = cret.asm crun8085lib.asm
+ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
+LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
+#PATH := /cygdrive/c/Users/roman/hobby/hardware_projects/google_code/smallc_u85ls
+PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85ls
+#PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85
+PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/asxv5pxx/asxmak/cygwin/exe
+PATH := $(PATH):/usr/bin
+PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/ncb85/Utils
+all: pre-build $(TARGET).hex post-build
+
+pre-build:
+	@echo 'Building project'
+
+post-build:
+	@echo 'Build finished'
+
+$(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
+	$(LINKER) $(ASLINKFLAGS) $(TARGET) $(ASM_OBJ) $(LIB_OBJ)
+	$(SORTHEX) $(TARGET).ihx > $(TARGET).hex
+	$(HEX2COM) $(TARGET).hex
+
+%.s: %.c
+	$(COMPILER) $(SCCFLAGS) $<
+	
+%.rel: %.c
+	$(COMPILER) $(SCCFLAGS) $<
+	$(ASSEMBLER) $(AS8085FLAGS) $(addsuffix .s, $(basename $<))
+
+%.rel: %.asm
+	$(ASSEMBLER) $(AS8085FLAGS) $<
+
+clean:
+	@echo 'Cleaning project'
+	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.lst *.rst *.lnk \
+	*.x *.com *.bin
+

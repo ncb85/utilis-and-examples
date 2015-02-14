@@ -1,0 +1,363 @@
+                              1 ; Small C 8080
+                              2 ;	Coder (2.4,84/11/27)
+                              3 ;	Front End (2.7,84/11/28)
+                              4 ;	Front End for ASXXXX (2.8,13/01/20)
+                              5 		;program area SMALLC_GENERATED is RELOCATABLE
+                              6 		.module SMALLC_GENERATED
+                              7 		.list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
+                              8 		.nlist  (pag)
+                              9 		.area  SMALLC_GENERATED  (REL,CON,CSEG)
+                             10 ;#include <stdio.h>
+                             11 ;#define stdin 0
+                             12 ;#define stdout 1
+                             13 ;#define stderr 2
+                             14 ;#define NULL 0
+                             15 ;#define EOF (-1)
+                             16 ;#define FILE char
+                             17 ;#define EOS 0
+                             18 ;/**
+                             19 ; * integer to ascii representation
+                             20 ; * @param n the integer number
+                             21 ; * @param s string buffer
+                             22 ; * @return 
+                             23 ; */
+                             24 ;itoa(int n, char s[]) {
+   0000                      25 itoa:
+                             26 ;    int i, sign;
+   0000 C5            [12]   27 	push	b
+   0001 C5            [12]   28 	push	b
+                             29 ;    if ((sign = n) < 0) {
+   0002 21 00 00      [10]   30 	lxi 	h,#0
+   0005 39            [10]   31 	dad 	sp
+   0006 E5            [12]   32 	push	h
+   0007 21 0A 00      [10]   33 	lxi 	h,#10
+   000A 39            [10]   34 	dad 	sp
+   000B CD 00 00      [18]   35 	call	ccgint
+   000E D1            [10]   36 	pop 	d
+   000F CD 00 00      [18]   37 	call	ccpint
+   0012 E5            [12]   38 	push	h
+   0013 21 00 00      [10]   39 	lxi 	h,#0
+   0016 D1            [10]   40 	pop 	d
+   0017 CD 00 00      [18]   41 	call	cclt
+   001A 7C            [ 4]   42 	mov 	a,h
+   001B B5            [ 4]   43 	ora 	l
+   001C CA 32 00      [10]   44 	jz  	$2
+                             45 ;        n = -n;
+   001F 21 08 00      [10]   46 	lxi 	h,#8
+   0022 39            [10]   47 	dad 	sp
+   0023 E5            [12]   48 	push	h
+   0024 21 0A 00      [10]   49 	lxi 	h,#10
+   0027 39            [10]   50 	dad 	sp
+   0028 CD 00 00      [18]   51 	call	ccgint
+   002B CD 00 00      [18]   52 	call	ccneg
+   002E D1            [10]   53 	pop 	d
+   002F CD 00 00      [18]   54 	call	ccpint
+                             55 ;    }
+                             56 ;    i = 0;
+   0032                      57 $2:
+   0032 21 02 00      [10]   58 	lxi 	h,#2
+   0035 39            [10]   59 	dad 	sp
+   0036 E5            [12]   60 	push	h
+   0037 21 00 00      [10]   61 	lxi 	h,#0
+   003A D1            [10]   62 	pop 	d
+   003B CD 00 00      [18]   63 	call	ccpint
+                             64 ;    do {
+   003E                      65 $3:
+                             66 ;        s[i++] = n % 10 + '0';
+   003E 21 06 00      [10]   67 	lxi 	h,#6
+   0041 39            [10]   68 	dad 	sp
+   0042 CD 00 00      [18]   69 	call	ccgint
+   0045 E5            [12]   70 	push	h
+   0046 21 04 00      [10]   71 	lxi 	h,#4
+   0049 39            [10]   72 	dad 	sp
+   004A E5            [12]   73 	push	h
+   004B CD 00 00      [18]   74 	call	ccgint
+   004E 23            [ 6]   75 	inx 	h
+   004F D1            [10]   76 	pop 	d
+   0050 CD 00 00      [18]   77 	call	ccpint
+   0053 2B            [ 6]   78 	dcx 	h
+   0054 D1            [10]   79 	pop 	d
+   0055 19            [10]   80 	dad 	d
+   0056 E5            [12]   81 	push	h
+   0057 21 0A 00      [10]   82 	lxi 	h,#10
+   005A 39            [10]   83 	dad 	sp
+   005B CD 00 00      [18]   84 	call	ccgint
+   005E E5            [12]   85 	push	h
+   005F 21 0A 00      [10]   86 	lxi 	h,#10
+   0062 D1            [10]   87 	pop 	d
+   0063 CD 00 00      [18]   88 	call	ccdiv
+   0066 EB            [ 4]   89 	xchg
+   0067 E5            [12]   90 	push	h
+   0068 21 30 00      [10]   91 	lxi 	h,#48
+   006B D1            [10]   92 	pop 	d
+   006C 19            [10]   93 	dad 	d
+   006D D1            [10]   94 	pop 	d
+   006E 7D            [ 4]   95 	mov 	a,l
+   006F 12            [ 7]   96 	stax	d
+                             97 ;    } while ((n = n / 10) > 0);
+   0070                      98 $4:
+   0070 21 08 00      [10]   99 	lxi 	h,#8
+   0073 39            [10]  100 	dad 	sp
+   0074 E5            [12]  101 	push	h
+   0075 21 0A 00      [10]  102 	lxi 	h,#10
+   0078 39            [10]  103 	dad 	sp
+   0079 CD 00 00      [18]  104 	call	ccgint
+   007C E5            [12]  105 	push	h
+   007D 21 0A 00      [10]  106 	lxi 	h,#10
+   0080 D1            [10]  107 	pop 	d
+   0081 CD 00 00      [18]  108 	call	ccdiv
+   0084 D1            [10]  109 	pop 	d
+   0085 CD 00 00      [18]  110 	call	ccpint
+   0088 E5            [12]  111 	push	h
+   0089 21 00 00      [10]  112 	lxi 	h,#0
+   008C D1            [10]  113 	pop 	d
+   008D CD 00 00      [18]  114 	call	ccgt
+   0090 7C            [ 4]  115 	mov 	a,h
+   0091 B5            [ 4]  116 	ora 	l
+   0092 C2 3E 00      [10]  117 	jnz 	$3
+   0095                     118 $5:
+                            119 ;    if (sign < 0) {
+   0095 21 00 00      [10]  120 	lxi 	h,#0
+   0098 39            [10]  121 	dad 	sp
+   0099 CD 00 00      [18]  122 	call	ccgint
+   009C E5            [12]  123 	push	h
+   009D 21 00 00      [10]  124 	lxi 	h,#0
+   00A0 D1            [10]  125 	pop 	d
+   00A1 CD 00 00      [18]  126 	call	cclt
+   00A4 7C            [ 4]  127 	mov 	a,h
+   00A5 B5            [ 4]  128 	ora 	l
+   00A6 CA C8 00      [10]  129 	jz  	$6
+                            130 ;        s[i++] = '-';
+   00A9 21 06 00      [10]  131 	lxi 	h,#6
+   00AC 39            [10]  132 	dad 	sp
+   00AD CD 00 00      [18]  133 	call	ccgint
+   00B0 E5            [12]  134 	push	h
+   00B1 21 04 00      [10]  135 	lxi 	h,#4
+   00B4 39            [10]  136 	dad 	sp
+   00B5 E5            [12]  137 	push	h
+   00B6 CD 00 00      [18]  138 	call	ccgint
+   00B9 23            [ 6]  139 	inx 	h
+   00BA D1            [10]  140 	pop 	d
+   00BB CD 00 00      [18]  141 	call	ccpint
+   00BE 2B            [ 6]  142 	dcx 	h
+   00BF D1            [10]  143 	pop 	d
+   00C0 19            [10]  144 	dad 	d
+   00C1 E5            [12]  145 	push	h
+   00C2 21 2D 00      [10]  146 	lxi 	h,#45
+   00C5 D1            [10]  147 	pop 	d
+   00C6 7D            [ 4]  148 	mov 	a,l
+   00C7 12            [ 7]  149 	stax	d
+                            150 ;    }
+                            151 ;    s[i] = EOS;
+   00C8                     152 $6:
+   00C8 21 06 00      [10]  153 	lxi 	h,#6
+   00CB 39            [10]  154 	dad 	sp
+   00CC CD 00 00      [18]  155 	call	ccgint
+   00CF E5            [12]  156 	push	h
+   00D0 21 04 00      [10]  157 	lxi 	h,#4
+   00D3 39            [10]  158 	dad 	sp
+   00D4 CD 00 00      [18]  159 	call	ccgint
+   00D7 D1            [10]  160 	pop 	d
+   00D8 19            [10]  161 	dad 	d
+   00D9 E5            [12]  162 	push	h
+   00DA 21 00 00      [10]  163 	lxi 	h,#0
+   00DD D1            [10]  164 	pop 	d
+   00DE 7D            [ 4]  165 	mov 	a,l
+   00DF 12            [ 7]  166 	stax	d
+                            167 ;    reverse(s);
+   00E0 21 06 00      [10]  168 	lxi 	h,#6
+   00E3 39            [10]  169 	dad 	sp
+   00E4 CD 00 00      [18]  170 	call	ccgint
+   00E7 E5            [12]  171 	push	h
+   00E8 3E 01         [ 7]  172 	mvi 	a,#1
+   00EA CD 00 00      [18]  173 	call	reverse
+   00ED C1            [10]  174 	pop 	b
+                            175 ;}
+   00EE                     176 $1:
+   00EE C1            [10]  177 	pop 	b
+   00EF C1            [10]  178 	pop 	b
+   00F0 C9            [10]  179 	ret
+                            180 ;/**
+                            181 ; * unsigned integer to ASCII
+                            182 ; * @param n the unsigned number
+                            183 ; * @param s string buffer
+                            184 ; * @param base
+                            185 ; * @return 
+                            186 ; */
+                            187 ;utoab(unsigned int n, char s[], int base) {
+   00F1                     188 utoab:
+                            189 ;    int i, offset;
+   00F1 C5            [12]  190 	push	b
+   00F2 C5            [12]  191 	push	b
+                            192 ;    i = 0;
+   00F3 21 02 00      [10]  193 	lxi 	h,#2
+   00F6 39            [10]  194 	dad 	sp
+   00F7 E5            [12]  195 	push	h
+   00F8 21 00 00      [10]  196 	lxi 	h,#0
+   00FB D1            [10]  197 	pop 	d
+   00FC CD 00 00      [18]  198 	call	ccpint
+                            199 ;    do {
+   00FF                     200 $8:
+                            201 ;        s[i] = n % base;
+   00FF 21 08 00      [10]  202 	lxi 	h,#8
+   0102 39            [10]  203 	dad 	sp
+   0103 CD 00 00      [18]  204 	call	ccgint
+   0106 E5            [12]  205 	push	h
+   0107 21 04 00      [10]  206 	lxi 	h,#4
+   010A 39            [10]  207 	dad 	sp
+   010B CD 00 00      [18]  208 	call	ccgint
+   010E D1            [10]  209 	pop 	d
+   010F 19            [10]  210 	dad 	d
+   0110 E5            [12]  211 	push	h
+   0111 21 0C 00      [10]  212 	lxi 	h,#12
+   0114 39            [10]  213 	dad 	sp
+   0115 CD 00 00      [18]  214 	call	ccgint
+   0118 E5            [12]  215 	push	h
+   0119 21 0A 00      [10]  216 	lxi 	h,#10
+   011C 39            [10]  217 	dad 	sp
+   011D CD 00 00      [18]  218 	call	ccgint
+   0120 D1            [10]  219 	pop 	d
+   0121 CD 00 00      [18]  220 	call	ccudiv
+   0124 EB            [ 4]  221 	xchg
+   0125 D1            [10]  222 	pop 	d
+   0126 7D            [ 4]  223 	mov 	a,l
+   0127 12            [ 7]  224 	stax	d
+                            225 ;        if (s[i] < 10 ) {
+   0128 21 08 00      [10]  226 	lxi 	h,#8
+   012B 39            [10]  227 	dad 	sp
+   012C CD 00 00      [18]  228 	call	ccgint
+   012F E5            [12]  229 	push	h
+   0130 21 04 00      [10]  230 	lxi 	h,#4
+   0133 39            [10]  231 	dad 	sp
+   0134 CD 00 00      [18]  232 	call	ccgint
+   0137 D1            [10]  233 	pop 	d
+   0138 19            [10]  234 	dad 	d
+   0139 CD 00 00      [18]  235 	call	ccgchar
+   013C E5            [12]  236 	push	h
+   013D 21 0A 00      [10]  237 	lxi 	h,#10
+   0140 D1            [10]  238 	pop 	d
+   0141 CD 00 00      [18]  239 	call	cclt
+   0144 7C            [ 4]  240 	mov 	a,h
+   0145 B5            [ 4]  241 	ora 	l
+   0146 CA 58 01      [10]  242 	jz  	$11
+                            243 ;            offset = '0';
+   0149 21 00 00      [10]  244 	lxi 	h,#0
+   014C 39            [10]  245 	dad 	sp
+   014D E5            [12]  246 	push	h
+   014E 21 30 00      [10]  247 	lxi 	h,#48
+   0151 D1            [10]  248 	pop 	d
+   0152 CD 00 00      [18]  249 	call	ccpint
+                            250 ;        } else {
+   0155 C3 64 01      [10]  251 	jmp 	$12
+   0158                     252 $11:
+                            253 ;            offset = 55; // 'A' - 10
+   0158 21 00 00      [10]  254 	lxi 	h,#0
+   015B 39            [10]  255 	dad 	sp
+   015C E5            [12]  256 	push	h
+   015D 21 37 00      [10]  257 	lxi 	h,#55
+   0160 D1            [10]  258 	pop 	d
+   0161 CD 00 00      [18]  259 	call	ccpint
+                            260 ;        }
+   0164                     261 $12:
+                            262 ;        s[i] = s[i] + offset;
+   0164 21 08 00      [10]  263 	lxi 	h,#8
+   0167 39            [10]  264 	dad 	sp
+   0168 CD 00 00      [18]  265 	call	ccgint
+   016B E5            [12]  266 	push	h
+   016C 21 04 00      [10]  267 	lxi 	h,#4
+   016F 39            [10]  268 	dad 	sp
+   0170 CD 00 00      [18]  269 	call	ccgint
+   0173 D1            [10]  270 	pop 	d
+   0174 19            [10]  271 	dad 	d
+   0175 E5            [12]  272 	push	h
+   0176 21 0A 00      [10]  273 	lxi 	h,#10
+   0179 39            [10]  274 	dad 	sp
+   017A CD 00 00      [18]  275 	call	ccgint
+   017D E5            [12]  276 	push	h
+   017E 21 06 00      [10]  277 	lxi 	h,#6
+   0181 39            [10]  278 	dad 	sp
+   0182 CD 00 00      [18]  279 	call	ccgint
+   0185 D1            [10]  280 	pop 	d
+   0186 19            [10]  281 	dad 	d
+   0187 CD 00 00      [18]  282 	call	ccgchar
+   018A E5            [12]  283 	push	h
+   018B 21 04 00      [10]  284 	lxi 	h,#4
+   018E 39            [10]  285 	dad 	sp
+   018F CD 00 00      [18]  286 	call	ccgint
+   0192 D1            [10]  287 	pop 	d
+   0193 19            [10]  288 	dad 	d
+   0194 D1            [10]  289 	pop 	d
+   0195 7D            [ 4]  290 	mov 	a,l
+   0196 12            [ 7]  291 	stax	d
+                            292 ;        i++;
+   0197 21 02 00      [10]  293 	lxi 	h,#2
+   019A 39            [10]  294 	dad 	sp
+   019B E5            [12]  295 	push	h
+   019C CD 00 00      [18]  296 	call	ccgint
+   019F 23            [ 6]  297 	inx 	h
+   01A0 D1            [10]  298 	pop 	d
+   01A1 CD 00 00      [18]  299 	call	ccpint
+   01A4 2B            [ 6]  300 	dcx 	h
+                            301 ;    } while ((n = n / base) > 0);
+   01A5                     302 $9:
+   01A5 21 0A 00      [10]  303 	lxi 	h,#10
+   01A8 39            [10]  304 	dad 	sp
+   01A9 E5            [12]  305 	push	h
+   01AA 21 0C 00      [10]  306 	lxi 	h,#12
+   01AD 39            [10]  307 	dad 	sp
+   01AE CD 00 00      [18]  308 	call	ccgint
+   01B1 E5            [12]  309 	push	h
+   01B2 21 0A 00      [10]  310 	lxi 	h,#10
+   01B5 39            [10]  311 	dad 	sp
+   01B6 CD 00 00      [18]  312 	call	ccgint
+   01B9 D1            [10]  313 	pop 	d
+   01BA CD 00 00      [18]  314 	call	ccudiv
+   01BD D1            [10]  315 	pop 	d
+   01BE CD 00 00      [18]  316 	call	ccpint
+   01C1 E5            [12]  317 	push	h
+   01C2 21 00 00      [10]  318 	lxi 	h,#0
+   01C5 D1            [10]  319 	pop 	d
+   01C6 CD 00 00      [18]  320 	call	ccugt
+   01C9 7C            [ 4]  321 	mov 	a,h
+   01CA B5            [ 4]  322 	ora 	l
+   01CB C2 FF 00      [10]  323 	jnz 	$8
+   01CE                     324 $10:
+                            325 ;    
+                            326 ;    s[i] = EOS;
+   01CE 21 08 00      [10]  327 	lxi 	h,#8
+   01D1 39            [10]  328 	dad 	sp
+   01D2 CD 00 00      [18]  329 	call	ccgint
+   01D5 E5            [12]  330 	push	h
+   01D6 21 04 00      [10]  331 	lxi 	h,#4
+   01D9 39            [10]  332 	dad 	sp
+   01DA CD 00 00      [18]  333 	call	ccgint
+   01DD D1            [10]  334 	pop 	d
+   01DE 19            [10]  335 	dad 	d
+   01DF E5            [12]  336 	push	h
+   01E0 21 00 00      [10]  337 	lxi 	h,#0
+   01E3 D1            [10]  338 	pop 	d
+   01E4 7D            [ 4]  339 	mov 	a,l
+   01E5 12            [ 7]  340 	stax	d
+                            341 ;    reverse(s);
+   01E6 21 08 00      [10]  342 	lxi 	h,#8
+   01E9 39            [10]  343 	dad 	sp
+   01EA CD 00 00      [18]  344 	call	ccgint
+   01ED E5            [12]  345 	push	h
+   01EE 3E 01         [ 7]  346 	mvi 	a,#1
+   01F0 CD 00 00      [18]  347 	call	reverse
+   01F3 C1            [10]  348 	pop 	b
+                            349 ;}
+   01F4                     350 $7:
+   01F4 C1            [10]  351 	pop 	b
+   01F5 C1            [10]  352 	pop 	b
+   01F6 C9            [10]  353 	ret
+                            354 		.area  SMALLC_GENERATED_DATA  (REL,CON,DSEG)
+                            355 	.globl	itoa
+                            356 	;extrn	reverse
+                            357 	.globl	utoab
+                            358 
+                            359 ;0 error(s) in compilation
+                            360 ;	literal pool:0
+                            361 ;	global pool:3
+                            362 ;	Macro pool:109
+                            363 	;	.end

@@ -1,0 +1,79 @@
+                              1 ; Small C 8080
+                              2 ;	Coder (2.4,84/11/27)
+                              3 ;	Front End (2.7,84/11/28)
+                              4 ;	Front End for ASXXXX (2.8,13/01/20)
+                              5 		;program area SMALLC_GENERATED is RELOCATABLE
+                              6 		.module SMALLC_GENERATED
+                              7 		.list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
+                              8 		.nlist  (pag)
+                              9 		.area  SMALLC_GENERATED  (REL,CON,CSEG)
+                             10 ;#define EOL 10
+                             11 ;#define CR 13
+                             12 ;getchar() {
+   0000                      13 getchar:
+                             14 ;    return (bdos(1, 1));
+   0000 21 01 00      [10]   15 	lxi 	h,#1
+   0003 E5            [12]   16 	push	h
+   0004 21 01 00      [10]   17 	lxi 	h,#1
+   0007 E5            [12]   18 	push	h
+   0008 3E 02         [ 7]   19 	mvi 	a,#2
+   000A CD 00 00      [18]   20 	call	bdos
+   000D C1            [10]   21 	pop 	b
+   000E C1            [10]   22 	pop 	b
+   000F C3 12 00      [10]   23 	jmp 	$1
+                             24 ;}
+   0012                      25 $1:
+   0012 C9            [10]   26 	ret
+                             27 ;putchar(char c) {
+   0013                      28 putchar:
+                             29 ;    if (c == EOL) {
+   0013 21 02 00      [10]   30 	lxi 	h,#2
+   0016 39            [10]   31 	dad 	sp
+   0017 CD 00 00      [18]   32 	call	ccgchar
+   001A E5            [12]   33 	push	h
+   001B 21 0A 00      [10]   34 	lxi 	h,#10
+   001E D1            [10]   35 	pop 	d
+   001F CD 00 00      [18]   36 	call	cceq
+   0022 7C            [ 4]   37 	mov 	a,h
+   0023 B5            [ 4]   38 	ora 	l
+   0024 CA 36 00      [10]   39 	jz  	$3
+                             40 ;        bdos(2, CR);
+   0027 21 02 00      [10]   41 	lxi 	h,#2
+   002A E5            [12]   42 	push	h
+   002B 21 0D 00      [10]   43 	lxi 	h,#13
+   002E E5            [12]   44 	push	h
+   002F 3E 02         [ 7]   45 	mvi 	a,#2
+   0031 CD 00 00      [18]   46 	call	bdos
+   0034 C1            [10]   47 	pop 	b
+   0035 C1            [10]   48 	pop 	b
+                             49 ;    }
+                             50 ;    bdos(2, c);
+   0036                      51 $3:
+   0036 21 02 00      [10]   52 	lxi 	h,#2
+   0039 E5            [12]   53 	push	h
+   003A 21 04 00      [10]   54 	lxi 	h,#4
+   003D 39            [10]   55 	dad 	sp
+   003E CD 00 00      [18]   56 	call	ccgchar
+   0041 E5            [12]   57 	push	h
+   0042 3E 02         [ 7]   58 	mvi 	a,#2
+   0044 CD 00 00      [18]   59 	call	bdos
+   0047 C1            [10]   60 	pop 	b
+   0048 C1            [10]   61 	pop 	b
+                             62 ;    return c;
+   0049 21 02 00      [10]   63 	lxi 	h,#2
+   004C 39            [10]   64 	dad 	sp
+   004D CD 00 00      [18]   65 	call	ccgchar
+   0050 C3 53 00      [10]   66 	jmp 	$2
+                             67 ;}
+   0053                      68 $2:
+   0053 C9            [10]   69 	ret
+                             70 		.area  SMALLC_GENERATED_DATA  (REL,CON,DSEG)
+                             71 	.globl	getchar
+                             72 	;extrn	bdos
+                             73 	.globl	putchar
+                             74 
+                             75 ;0 error(s) in compilation
+                             76 ;	literal pool:0
+                             77 ;	global pool:3
+                             78 ;	Macro pool:64
+                             79 	;	.end

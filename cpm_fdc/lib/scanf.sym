@@ -1,0 +1,34 @@
+ASxxxx Assembler V05.00  (Intel 8085), page 1.
+Hexidecimal [16-Bits]
+
+Symbol Table
+
+  2 $1                 0032 R   |   2 $10                0167 R
+  2 $11                0173 R   |   2 $2                 0082 R
+  2 $3                 00D5 R   |   2 $4                 0167 R
+  2 $5                 010D R   |   2 $6                 0167 R
+  2 $7                 0156 R   |   2 $8                 0143 R
+  2 $9                 0153 R   |     .__.$$$.       =   2710 L
+    .__.ABS.       =   0000 G   |     .__.CPU.       =   0000 L
+    .__.H$L.       =   0000 L   |   3 _Oldch             0002 GR
+  3 _String1           0000 GR  |   2 _getc              00D7 GR
+    _scanf             **** GX  |   2 _ungetc            0169 GR
+    ccargc             **** GX  |     ccgchar            **** GX
+    ccgint             **** GX  |     ccne               **** GX
+    ccneg              **** GX  |     ccpint             **** GX
+    ccsub              **** GX  |     fgetc              **** GX
+  2 fscanf             0033 GR  |   2 scanf              0000 GR
+  2 sscanf             0084 GR
+
+ASxxxx Assembler V05.00  (Intel 8085), page 2.
+Hexidecimal [16-Bits]
+
+Area Table
+
+[_CSEG]
+   0 _CODE            size    0   flags C080
+   2 SMALLC_GENERAT   size  174   flags 4D00
+   3 SMALLC_GENERAT   size    4   flags 4D40
+[_DSEG]
+   1 _DATA            size    0   flags C0C0
+
