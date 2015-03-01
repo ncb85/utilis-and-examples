@@ -215,9 +215,9 @@ motor_on:       lda drive_nr
                 cpi 01
                 jz motor1               ;drive 1
                 cpi 02
-                jz motor2               ;drive 1
+                jz motor2               ;drive 2
                 cpi 03
-                jz motor3               ;drive 1
+                jz motor3               ;drive 3
                 lxi h,BAD_DRIVE_NR
                 stc                     ;error
                 ret
