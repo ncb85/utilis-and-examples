@@ -191,7 +191,7 @@ dela1:          dcx b                   ;[6]
                 ;
                 ; wait until FDC is ready for new command, C flag set on timeout
 busy_check:     push b
-                mvi b,0xfF
+                mvi b,0xFF
 busy_check2:    dcr b
                 jz busy_err             ;something is wrong
                 in REG_MSR              ;get FDC status
@@ -214,12 +214,20 @@ motor_on:       lda drive_nr
                 jz motor0               ;drive 0
                 cpi 01
                 jz motor1               ;drive 1
+                cpi 02
+                jz motor2               ;drive 1
+                cpi 03
+                jz motor3               ;drive 1
                 lxi h,BAD_DRIVE_NR
                 stc                     ;error
                 ret
 motor0:         mvi a,DRIVE_0_DOR
                 jmp motor_do
 motor1:         mvi a,DRIVE_1_DOR
+                jmp motor_do
+motor2:         mvi a,DRIVE_2_DOR
+                jmp motor_do
+motor3:         mvi a,DRIVE_2_DOR
 motor_do:       out REG_DOR
                 ret
                 ;

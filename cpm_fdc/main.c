@@ -6,7 +6,7 @@
 
 #define CTRL_C                  0x03
 
-char user_response[82];
+char user_response[82], drv;
 unsigned int num_of_tracks;
 extern unsigned char status_reg_0, status_reg_1, status_reg_2, status_reg_3;
 extern unsigned char number_of_sctrs, NUMBER_OF_BYTES, sector_fnr[], dbuffer[];
@@ -94,7 +94,7 @@ cmd_recalibrate() {
 }
 
 cmd_seek_track(int ptrack_nr) {
-    drive_nr = 0;
+    drive_nr = drv;
     track_nr = ptrack_nr;
     head_nr = 0;
     sector_nr = 0;
@@ -133,7 +133,7 @@ cmd_format(int ptrack_nr, int phead_nr) {
         dbuffer[j++] = sector_fnr[i];
         dbuffer[j] = NUMBER_OF_BYTES;
     }
-    drive_nr = 0;
+    drive_nr = drv;
     track_nr = ptrack_nr;
     head_nr = phead_nr;
     sector_nr = 0;
@@ -142,7 +142,7 @@ cmd_format(int ptrack_nr, int phead_nr) {
 }
 
 cmd_read(int ptrack_nr, int psector_nr, int phead_nr) {
-    drive_nr = 0;
+    drive_nr = drv;
     track_nr = ptrack_nr;
     head_nr = phead_nr;
     sector_nr = psector_nr;
@@ -155,7 +155,7 @@ cmd_read(int ptrack_nr, int psector_nr, int phead_nr) {
 }
 
 cmd_write(int ptrack_nr, int psector_nr, int phead_nr) {
-    drive_nr = 0;
+    drive_nr = drv;
     track_nr = ptrack_nr;
     head_nr = phead_nr;
     sector_nr = psector_nr;
@@ -242,7 +242,7 @@ modify_buffer() {
         address = get_number();
     } while (address < 0 || address > 255);   
     do {
-        printf("\nvalue (%d)(%Xh)? (0-255)\n", dbuffer[address], dbuffer[address]);
+        printf("\nvalue (%d)(%xh)? (0-255)\n", dbuffer[address], dbuffer[address]);
         value = get_number();
     } while (value < 0 || value > 255);   
     dbuffer[address] = value;
@@ -439,7 +439,12 @@ main(int argc, int argv[]) {
         p = console_getc();
     } while (p < '0' || p > '3');
     set_drive_type(p);
-    
+    printf("\nPress 0..3 for drive number\n");
+    do {
+        p = console_getc();
+    } while (p < '0' || p > '3');
+    drv  = p - '0';
+    printf("\n");
     while(1) {
         do {
             printf("Menu:\ne. exit, f. format track, d. format disk, r. read sector, k. read disk\n");
@@ -523,7 +528,7 @@ main(int argc, int argv[]) {
                                 alloc_unit += head_nr * number_of_sctrs + sector_nr;
                                 position = alloc_unit % 8;
                                 alloc_unit /= 8;
-                                printf(", alloc unit %d, position %d of 0..7", alloc_unit, position);
+                                printf(", [alloc unit %d, position %d of 0..7], ", alloc_unit, position);
                                 report(result, 0);
                                 // TODO save bad sectors in an array and lock them out later
                             }
