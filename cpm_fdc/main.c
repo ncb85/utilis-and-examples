@@ -397,9 +397,9 @@ get_track_nr() {
 get_sector_nr() {
     int sector_nr;
     do {
-        printf("\nsector number? (0-%d)\n", number_of_sctrs);
+        printf("\nsector number? (0-%d)\n", number_of_sctrs-1);
         sector_nr = get_number();
-    } while (sector_nr < 0 || sector_nr > number_of_sctrs);
+    } while (sector_nr < 0 || sector_nr > number_of_sctrs-1);
     return sector_nr;
 }
 
