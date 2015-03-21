@@ -66,25 +66,28 @@ generate_sec_numbers(int interl) {
     //compute sec.numbers
 	j = 0;
 	for (i=0; i<number_of_sctrs; i++) {
-	    while (sector_fnr[j] != 255) {
-		    j++;
-            if (j > number_of_sctrs) {
-                j %= interl;
+        sector_fnr[j] = i;
+        if (i == number_of_sctrs - 1) {
+              break;
+        }
+        j += interl;
+        /*skip positions that already have number*/
+	    while (j >= number_of_sctrs || sector_fnr[j] != 255) {
+            if (j >= number_of_sctrs) {
+                j -= number_of_sctrs;
+            } else {
+		        j++;
             }
 	    }
-        sector_fnr[j] = i;
-        j += interl;
-        if (j >= number_of_sctrs) {
-            j %= interl;
-        }
 	}
     //printf("\n");
 	//for (i=0; i<number_of_sctrs; i++) {
-        //printf("%02d,", sector_fnr[i]);
+    //    printf("%02d,", sector_fnr[i]);
 	//}
 }
 
 cmd_recalibrate() {
+    drive_nr = drv;
 #ifdef smallc
 #asm
     xra a
