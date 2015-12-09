@@ -227,7 +227,7 @@ motor1:         mvi a,DRIVE_1_DOR
                 jmp motor_do
 motor2:         mvi a,DRIVE_2_DOR
                 jmp motor_do
-motor3:         mvi a,DRIVE_2_DOR
+motor3:         mvi a,DRIVE_3_DOR
 motor_do:       out REG_DOR
                 ret
                 ;
