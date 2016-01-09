@@ -1,21 +1,19 @@
-; driver for the Phillips I2C controller PCF8584
-;                             ES0 ES1 ES2    
-;         01 Address Register 0   0   0
-;         01 Vector Register  0   0   1
-;         01 Clock Register   0   1   0
-;         01 Data Register    1   0   0
-;         03 Control Register 0   x   x
-;         03 Cntrl/Status Reg 1   x   x
-                    .module PCF8584_DRIVER
-                    .area   SMALLC_GENERATED  (REL,CON,CSEG)
-                    .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
-                    .nlist  (pag)
-                    .globl  pcf8584_init, reset_i2c_bus
-                    .globl  send_buf, recv_buf
+; driver for the Phillips I2C bus controller PCF8584 for 8085 CPU
+; uses no IRQs, all code control is done via status register
+                .module PCF8584_DRIVER
+                .area   SMALLC_GENERATED  (REL,CON,CSEG)
+                .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
+                .nlist  (pag)
+                .globl  pcf8584_init, reset_i2c_bus
+                .globl  send_buf, recv_buf
 
 PCF8584_S0      .equ    0x58                ;data register
 PCF8584_S1      .equ    PCF8584_S0+1        ;control/status register
-TIMEOUT          .equ	255                 ;timeout (tries)
+OWN_ADDR        .equ    0x55                ;effective own I2C address is shifted to left
+                                            ;it will become AAH
+CLCK_443        .equ    0x10                ;system clock is 4.43 MHz; SCL = 90 kHz
+CLCK_600        .equ    0x14                ;system clock is 6 MHz; SCL = 90 kHz
+TIMEOUT         .equ	0                   ;timeout (256 tries)
                 ; control bits
 PIN             .equ	0x80                ;pending interrupt (is also status bit)
 ESO             .equ	0x40                ;enable serial output
@@ -46,15 +44,11 @@ ERR_WAIT_PIN    .equ    1
 ERR_NO_ACK      .equ    2
 ERR_BUS_BUSY    .equ    3
                 ;
-;address:        .db     1                   ; I2C address
-;buffer:         .dw     1                   ; data buffer
-;length:         .db     1                   ; data buffer length
-                ;
-                ; wait aprox. 25us (42t fixed + 24t x LOOP)
-                ; 5MHz CPU 125 cycles (act.162)
-                ; 8MHz CPU 200 cycles (act.234)
+                ; wait aprox. 80us (42t fixed + 24t x LOOP)
+                ; 5MHz CPU 400 cycles (act.402)
+                ; 8MHz CPU 640 cycles
 udelay:         push b                      ;[12]
-                lxi b,15                     ;[10]  const CRYSTAL/2
+                lxi b,15                    ;[10]  const CRYSTAL/2
 dela1:          dcx b                       ;[6]
                 mov a,b                     ;[4]
                 ora c                       ;[4]
@@ -62,18 +56,17 @@ dela1:          dcx b                       ;[6]
                 pop b                       ;[10]
                 ret                         ;[10]
 pcf8584_init:   ; initialize controller
-                mvi     a,RESET             ; will also choose register S0_OWN i.e. next byte will be
-                out     PCF8584_S1          ; loaded into reg S0^ (own address reg); serial interface off.
-                mvi     a,0x55              ; Loads byte 55H into reg S0^ effective own address becomes AAH.
-                out     PCF8584_S0          ; pcf8584 shifts this value left one bit
-                mvi     a,S2                ; Loads byte A0H into reg S1, i.e. next byte will
-                out     PCF8584_S1          ; be loaded into the clock control reg S2.
-                mvi     a,0x10              ; Loads byte 10H into reg S2;system clock is 4.43 MHz; SCL = 90 kHz
-                ;mvi     a,0x14              ; Loads byte 14H into reg S2;system clock is 6 MHz; SCL = 90 kHz
-                out     PCF8584_S0
-                mvi     a,CLEAR_I2C_BUS     ; Loads byte C1H into reg S1; reg enable serial interface
-                out     PCF8584_S1          ; The next write or read operation will be to/from data transfer reg S0
-                call    udelay
+                mvi a,RESET                 ; will also choose register S0_OWN i.e. next byte will be
+                out PCF8584_S1              ; loaded into reg S0^ (own address reg); serial interface off.
+                mvi a,OWN_ADDR              ; loads byte 55H into reg S0^ effective own address becomes AAH.
+                out PCF8584_S0              ; pcf8584 shifts this value left one bit
+                mvi a,S2                    ; loads byte A0H into reg S1, i.e. next byte will
+                out PCF8584_S1              ; be loaded into the clock control reg S2.
+                mvi a,CLCK_443              ; loads byte 10H into reg S2;system clock is 4.43 MHz; SCL = 90 kHz
+                out PCF8584_S0
+                mvi a,CLEAR_I2C_BUS         ; loads byte C1H into reg S1; reg enable serial interface
+                out PCF8584_S1              ; next write or read operation will be to/from data transfer reg S0
+                call udelay
                 ret
 reset_i2c_bus:  ; reset I2C bus
                 mvi a,SEND_I2C_STOP         ; stop C2
@@ -119,11 +112,11 @@ xmit_raddr:     ; transmit address in read mode, A address
                 jmp xmit_start              ; begin transmission
 xmit_waddr:     ; transmit address in write mode, A address
                 ani 0xFE                    ; clear last address bit in WRITE mode
-                ;jmp xmit_start              ; begin transmission - fall through
+                ;jmp xmit_start             ; begin transmission - fall through
 xmit_start:     ; common routine, begin address transmission
-                out PCF8584_S0              ; send address
+                out PCF8584_S0              ; send(set) address
                 mvi a,SEND_I2C_START+ACK    ; begin communication
-                out PCF8584_S1              ; send address will be the next write to S0
+                out PCF8584_S1              ; the transmission of address from S0 is now started
                 call wait_for_pin           ; wait for the i2c send to finish
                 rc                          ; error, abort
                 ;jmp check_ack              ; check slave acknowledge - fall through
@@ -139,7 +132,7 @@ xmit_byte:      ; transmit one byte
                 call wait_for_pin           ; wait for the i2c send to finish
                 rc                          ; error, abort
                 jmp check_ack               ; check slave acknowledge
-recv_byte:      ; receive one byte, CY must be set on last byte to be read
+recv_byte:      ; receive one byte
                 call wait_for_pin           ; wait for the i2c read to finish
                 rc                          ; error abort
                 in PCF8584_S0               ; read byte
@@ -147,7 +140,7 @@ recv_byte:      ; receive one byte, CY must be set on last byte to be read
                 stc                         ; clear CY
                 cmc                         ;
                 ret
-recv_buf:       ; receive buffer, A I2C address, C length, DE destination
+recv_buf:       ; receive buffer, A-I2C address, C-length, DE-destination
                 mov h,a                     ; back up I2C address
                 call wait_for_bus           ; return when bus not available
                 rc                          ; bus busy error
@@ -155,20 +148,20 @@ recv_buf:       ; receive buffer, A I2C address, C length, DE destination
                 call xmit_raddr             ; send I2C address
                 jc rcerr                    ; error
                 in PCF8584_S0               ; dummy read, begins transfer of first value from bus to S0
-                                            ; therefore this value must be discarded
+                                            ; therefore this very first value must be discarded
 rcb1:           dcr c                       ; counter
                 jz rcdone                   ; last byte?
                 call recv_byte              ; receive one byte
-                call check_ack              ; did master (this controller) acknowledge?
+                cnc check_ack               ; did master (this controller) acknowledge?
                 jc rcerr                    ; error occured
                 inx d                       ; increment destination pointer
                 jmp rcb1                    ; next byte
 rcdone:         mvi a,NEGATIVE_ACK          ; last byte (master receiver mode)
-                out PCF8584_S1              ; send stop
+                out PCF8584_S1              ; send negative acknowledge
                 call recv_byte              ; receive last byte
                 jc rcerr                    ; error occured
                 jmp done                    ; release bus
-send_buf:       ; send buffer, A address, C length, HL source
+send_buf:       ; send buffer, A-I2C address, C-length, HL-source
                 mov d,a                     ; back up I2C address
                 call wait_for_bus           ; return when bus not available
                 rc                          ; bus busy error
@@ -186,9 +179,9 @@ rcerr:          mvi a,SEND_I2C_STOP         ; error
                 out PCF8584_S1              ; send stop
                 stc                         ; error flag
                 ret                         ; abort
-done:           mvi a,SEND_I2C_STOP + ACK   ; done
+done:           mvi a,SEND_I2C_STOP + ACK   ; done, stop
                 out PCF8584_S1              ; send ack
-                lxi h,OK                    ; OK
+                lxi h,OK                    ; all OK
                 ret
                 ;
-                    .end
+                .end

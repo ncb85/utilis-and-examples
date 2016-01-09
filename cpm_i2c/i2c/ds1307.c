@@ -50,7 +50,7 @@ refresh_time_ds1307() {
     i2c_send_buffer(DS1307_ADDR, reg0_data, 1);
     // read out 7 registers, seconds, minutes ...
     result = i2c_recv_buffer(DS1307_ADDR, data_buff, 7);
-    report(result);
+    //report(result);
     second = bcd_to_bin(data_buff[0]);
     minute = bcd_to_bin(data_buff[1]);
     hour = bcd_to_bin(data_buff[2]);
