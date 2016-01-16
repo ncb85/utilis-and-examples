@@ -14,7 +14,7 @@
 #define CONTROL_REG     0x07
 
 // set register pointer to 0 (seconds)
-unsigned char reg0_data[] = {0x00};
+unsigned char reg0_data[] = {SECOND_REG};
 // data buffer
 unsigned char data_buff[8];
 // variables

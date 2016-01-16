@@ -5,7 +5,7 @@
                 .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
                 .nlist  (pag)
                 .globl  pcf8584_init, reset_i2c_bus
-                .globl  send_buf, recv_buf
+                .globl  send_buf, recv_buf, send_buf_addr
 
 PCF8584_S0      .equ    0x58                ;data register
 PCF8584_S1      .equ    PCF8584_S0+1        ;control/status register
@@ -140,7 +140,8 @@ recv_byte:      ; receive one byte
                 stc                         ; clear CY
                 cmc                         ;
                 ret
-recv_buf:       ; receive buffer, A-I2C address, C-length, DE-destination
+recv_buf:       ; receive buffer, A-I2C address, BC-length, DE-destination
+                ; receives data from device, writes it to the memory buffer
                 mov h,a                     ; back up I2C address
                 call wait_for_bus           ; return when bus not available
                 rc                          ; bus busy error
@@ -149,8 +150,10 @@ recv_buf:       ; receive buffer, A-I2C address, C-length, DE-destination
                 jc rcerr                    ; error
                 in PCF8584_S0               ; dummy read, begins transfer of first value from bus to S0
                                             ; therefore this very first value must be discarded
-rcb1:           dcr c                       ; counter
-                jz rcdone                   ; last byte?
+rcb1:           dcx b                       ; counter
+                mov a,b                     ; check BC
+                ora c                       ; both zero?
+                jz rcdone                   ; last byte
                 call recv_byte              ; receive one byte
                 cnc check_ack               ; did master (this controller) acknowledge?
                 jc rcerr                    ; error occured
@@ -162,6 +165,7 @@ rcdone:         mvi a,NEGATIVE_ACK          ; last byte (master receiver mode)
                 jc rcerr                    ; error occured
                 jmp done                    ; release bus
 send_buf:       ; send buffer, A-I2C address, C-length, HL-source
+                ; sends buffer content to the device (pure data)
                 mov d,a                     ; back up I2C address
                 call wait_for_bus           ; return when bus not available
                 rc                          ; bus busy error
@@ -175,6 +179,23 @@ seb2:           mov a,m                     ; get byte
                 jz  done                    ; last byte?
                 inx h                       ; increment source pointer
                 jmp seb2                    ; next byte
+send_buf_addr:  ; send buffer with address, A-I2C address, C-length, HL-source
+                ; DE-dest. device internal address, sends device's internal dest. 
+                ; address in the first two bytes, followed by buffer content
+                ; e.g. as needed by EEPROMs
+                push d                      ; back up DE
+                mov d,a                     ; back up I2C address
+                call wait_for_bus           ; return when bus not available
+                rc                          ; bus busy error
+seba1:          mov a,d                     ; restore address
+                call xmit_waddr             ; send device I2C address
+                pop d                       ; restore DE
+                jc rcerr                    ; error occured
+                mov a,d                     ; higher byte of dest.address
+                call xmit_byte              ; transmit it
+                mov a,e                     ; lower byte of dest.address
+                call xmit_byte              ; transmit it
+                jmp seb2                    ; continue with the data
 rcerr:          mvi a,SEND_I2C_STOP         ; error
                 out PCF8584_S1              ; send stop
                 stc                         ; error flag

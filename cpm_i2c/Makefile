@@ -24,7 +24,7 @@ TARGET = iic
 LIB_SRC = main.c lib/bdos.c lib/chio8080.c lib/arglist.c lib/charclass.c lib/io8080.c \
 	  lib/bdos1.c lib/exit.c lib/printf.c lib/itoa.c lib/strlen.c lib/atoi.c \
 	  lib/reverse.c lib/inout.c i2c/i2c_master.c i2c/tmp275.c i2c/pca9555.c \
-	  i2c/ds1307.c
+	  i2c/ds1307.c i2c/at24c128.c
 ASM_SRC = cret.asm crun8085lib.asm i2c/pcf8584.asm 
 
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
@@ -47,7 +47,8 @@ $(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
 	$(LINKER) $(ASLINKFLAGS) $(TARGET) $(ASM_OBJ) $(LIB_OBJ)
 	$(SORTHEX) $(TARGET).ihx > $(TARGET).hex
 	$(HEX2COM) $(TARGET).hex
-
+	$(REMOVE) $(TARGET).ihx
+	
 %.rel: %.c
 	$(COMPILER) $(SCCFLAGS) $<
 	$(ASSEMBLER) $(AS8085FLAGS) $(addsuffix .s, $(basename $<))

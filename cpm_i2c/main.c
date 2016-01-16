@@ -161,7 +161,8 @@ main(int argc, int argv[]) {
         do {
             printf("Menu:\ne. exit, i. port in, o. port out, n. init pcf8584, r. reset i2c bus\n");
             printf("d. get date, t. get time, s. set date, m. set time, a. init DS1307\n");
-            printf("q. configure TMP275, p. read temp.TMP275, l. light leds on PCA9555\n");
+            printf("q. configure TMP275, p. read temp.TMP275, l. light LEDs on PCA9555\n");
+            printf("y. read 4kB of data from AT24C256, w. write 4kB of data to AT24C256\n");
             printf("c. show status reg., Your choice?\n");
             p = console_getc();
         } while (p < 'a' || p > 'z');
@@ -246,6 +247,16 @@ main(int argc, int argv[]) {
                 }
                 fract = fract*25/4;
                 printf("\nTemperature:%d.%02u degree Celsius", result/16, fract);
+                break;
+            case 'y':
+                printf("\nReading 4kB of data from AT24C256\n");
+                read_at24c512(0x4000, 0x0000, 4096); // dest., eeprom addr., len.
+                break;
+            case 'w':
+                printf("\nWriting 4kB of data to AT24C256\n");
+                // params: src.addr., internal eeprom dest.addr., len.
+                result = write_at24c512(0x4000, 0x0000, 4096);
+                report(result);
                 break;
             case 'c':
                 result = inp(0x59);
