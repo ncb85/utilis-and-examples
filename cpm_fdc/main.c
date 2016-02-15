@@ -183,32 +183,14 @@ print_buffer() {
     }
 }
 
-to_hex(char buff[], unsigned char byte) {
-    unsigned char p;
-    p = byte / 0x10;
-    p += 0x30;
-    if (p > 0x39) { // A..F?
-        p += 0x07;
-    }
-    buff[0] = p;
-    p = byte % 0x10;
-    p += 0x30;
-    if (p > 0x39) { // A..F?
-        p += 0x07;
-    }
-    buff[1] = p;
-    buff[2] = 0;
-}
-
 dump_buffer() {
     int i,j;
-    char p, buff[3];
+    unsigned char p;
 	for (i=0; i<256; i+=16) {
         printf("\n");
         for (j=0; j<16; j++) {
             p = dbuffer[i+j];
-            to_hex(buff, p);
-            printf("%s", buff);
+            printf("%02x ", p);
         }
         printf("    ");
         for (j=0; j<16; j++) {
@@ -418,7 +400,7 @@ get_head_nr() {
 get_interleave() {
     int interleave;
     do {
-        printf("\ninterleave? (1-9) (recom. 1.44MB/4, 360kB/5)\n");
+        printf("\ninterleave? (1-9) (recom. 1.44MB/3, 1.2MB/3, 360kB/4)\n");
         interleave = get_number();
     } while (interleave < 1 || interleave > 9);
     return interleave;
@@ -560,7 +542,7 @@ main(int argc, int argv[]) {
                 break;
             case 'n':
                 result = fd_nsc();
-                printf("\nNSC command result:%02x\n", result);
+                printf("\nNSC command (73=OK):%02x\n", result);
                 break;
             case 'i':
                 fd_init();
@@ -584,6 +566,6 @@ main(int argc, int argv[]) {
                 break;
         }
         result = fd_msr();
-        printf("MSR:%02x\n", result);
+        printf("MSR(80=OK):%02x\n", result);
     }
 }
