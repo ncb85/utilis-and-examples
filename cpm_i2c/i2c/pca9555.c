@@ -22,7 +22,10 @@ unsigned char pattern[] = {0xb6, 0x6d, 0xdb};
 pca_led_demo() {
     int i,j,k;
     // set port for output
-    set_port_pca9555(PORT_0, DIR_OUT);
+    i = set_port_pca9555(PORT_0, DIR_OUT);
+    if (i != 0) {   // return on error
+        return i;
+    }
     // switch three patterns around
     for(j=0; j<60; j++) {
         if (j<30) {

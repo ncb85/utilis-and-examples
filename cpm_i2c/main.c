@@ -1,12 +1,12 @@
 /*
- * File:   main.c, april 2015
+ * File:   main.c, jan 2016
  * i2c test on CP/M
  */
 #include <stdio.h>
 
 char buff[80], *txt;
 char user_response[82], p;
-int time;
+int time, lcd_inited = -1;
 int result = -1, err1 = -1, err2 = -1, adr1 = -2, adr2 = -2;
 int secs = 0, minutes = 0, value;
 
@@ -163,7 +163,7 @@ main(int argc, int argv[]) {
             printf("d. get date, t. get time, s. set date, m. set time, a. init DS1307\n");
             printf("q. configure TMP275, p. read temp.TMP275, l. light LEDs on PCA9555\n");
             printf("y. read 4kB of data from AT24C256, w. write 4kB of data to AT24C256\n");
-            printf("c. show status reg., Your choice?\n");
+            printf("b. LCD over I2C backpack test, c. show status reg., Your choice?\n");
             p = console_getc();
         } while (p < 'a' || p > 'z');
 
@@ -265,6 +265,30 @@ main(int argc, int argv[]) {
                 lbr = result & 0x04 ? 1 : 0;
                 be = result & 0x10 ? 1 : 0;
                 printf("\nPIN:%d, neg. Bus Busy: %d, Last Bit Received:%d, Bus Error:%d", pin, bb, lbr, be);
+                break;
+            case 'b':
+                printf("\nSending text to LCD\n");
+                if (lcd_inited != 0) {
+                    printf("init\n");
+                    lcd_inited = lcd_init();
+                    lcd_on();
+                    lcd_clr();
+                }
+                if (lcd_inited == 0) {
+                    printf("already initialsed\n");
+                    lcd_home();
+                    lcd_str("test OK");
+                }
+                report(lcd_inited);
+                /*for (i=0; i<1000; i++) {
+                    sprintf(buff, "%d", i);
+#asm
+                    mvi h, 0        ; column
+                    mvi l, 1        ; row
+#endasm                    
+                    lcd_pos();
+                    lcd_str(buff);
+                }*/
                 break;
             default:
                 break;

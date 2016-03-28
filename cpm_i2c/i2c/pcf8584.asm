@@ -5,7 +5,7 @@
                 .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
                 .nlist  (pag)
                 .globl  pcf8584_init, reset_i2c_bus
-                .globl  send_buf, recv_buf, send_buf_addr
+                .globl  send_buf, recv_buf, send_buf_addr, udelay
 
 PCF8584_S0      .equ    0x58                ;data register
 PCF8584_S1      .equ    PCF8584_S0+1        ;control/status register
@@ -182,7 +182,8 @@ seb2:           mov a,m                     ; get byte
 send_buf_addr:  ; send buffer with address, A-I2C address, C-length, HL-source
                 ; DE-dest. device internal address, sends device's internal dest. 
                 ; address in the first two bytes, followed by buffer content
-                ; e.g. as needed by EEPROMs
+                ; e.g. as needed by EEPROMs, this convinience method should
+                ; actually be in EEPROMs driver file but it has dependences here
                 push d                      ; back up DE
                 mov d,a                     ; back up I2C address
                 call wait_for_bus           ; return when bus not available
