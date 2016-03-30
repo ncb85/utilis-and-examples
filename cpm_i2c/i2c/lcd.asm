@@ -3,7 +3,7 @@
                 .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
                 .nlist  (pag)
                 .globl  lcd_init, lcd_on, lcd_off, lcd_home, lcd_pos, lcd_clr
-                .globl  lcd_str
+                .globl  lcd_str, lcd_udg
 ; ============================================
 ; LCD 1602, 1604, 2002, 2004 driver v. 2
 ; for LCD based on HD44580 controller chip
@@ -146,26 +146,31 @@ lcdps0:         add     h
 ; create user-defined graphic
 ; matrix addr in HL
 ; character index in ACC
-LCDUDG:         push    h
-                ani     0x03            ; only 8 own characters possible
+lcd_udg:        pop     b               ; return address
+                pop     d               ; get character index
+                pop     h               ; get array address param
+                push    h               ; adjust stack
+                push    d               ; adjust stack
+                push    b               ; adjust stack
+                push    h               ; backup HL
+                mov     a, e            ; character index
+                ani     0x07            ; only 8 own characters possible
                 rlc                     ; multiply by 8 (each character has 8 bytes)
                 rlc
                 rlc
                 ori     0b01000000      ; Set CG RAM command
                 call    lcdcmd
-                pop     h
-                mvi     b, 8            ; eight bytes for characters
-LCDGR0:         mov     a, m            ; read from matrix
-                push    h
-                push    b
+                pop     h               ; restore HL
+                mvi     b, 8            ; eight bytes for character
+lcdgr0:         mov     a, m            ; read from matrix
+                push    h               ; backup HL
+                push    b               ; backup BC
                 call    lcdata          ; and send to LCD
-                pop     b
-                pop     h
+                pop     b               ; restore BC
+                pop     h               ; restore HL
                 inx     h
-                dcx     b
-                mov     a, b
-                ora     c
-                jnz     LCDGR0          ; repeat
+                dcr     b
+                jnz     lcdgr0          ; repeat
                 ret
 ; show null-terminated string
 ; HL pointer to string is pushe on the stack

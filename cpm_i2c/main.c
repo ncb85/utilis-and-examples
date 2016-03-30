@@ -9,6 +9,17 @@ char user_response[82], p;
 int time, lcd_inited = -1;
 int result = -1, err1 = -1, err2 = -1, adr1 = -2, adr2 = -2;
 int secs = 0, minutes = 0, value;
+char LCDMSG[] = {116,101,115,116,32,79,75,7,6,5,4,3,2,1,0};
+unsigned char custom_char[] = {                     // define 8 custom LCD chars
+    0x00,0x00,0x0A,0x00,0x00,0x11,0x0E,0x00,        // 0. SMILEY
+    0x04,0x0E,0x0E,0x0E,0x1F,0x00,0x04,0x00,        // 1. BELL
+    0x00,0x0A,0x1F,0x1F,0x0E,0x04,0x00,0x00,        // 2. HEART
+    0x00,0x00,0x0E,0x1C,0x18,0x1C,0x0E,0x00,        // 3. PACMAN
+    0x00,0x0E,0x1F,0x15,0x1F,0x1F,0x15,0x00,        // 4. GHOST
+    0x00,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x00, // 5. 5/5 full progress block
+    0x03,0x07,0x0F,0x1F,0x0F,0x07,0x03,0x00, // 6. rewind arrow
+    0x18,0x1C,0x1E,0x1F,0x1E,0x1C,0x18,0x00  // 7. fast-forward arrow
+};
 
 /**
  * interrupt 6 routine - PCF8584
@@ -273,11 +284,15 @@ main(int argc, int argv[]) {
                     lcd_inited = lcd_init();
                     lcd_on();
                     lcd_clr();
+                    //init 8 custom chars
+                    for (i=0; i<8;i++) {
+                        lcd_udg(custom_char+i*8, i);
+                    }
                 }
                 if (lcd_inited == 0) {
                     printf("already initialsed\n");
                     lcd_home();
-                    lcd_str("test OK");
+                    lcd_str(LCDMSG);
                 }
                 report(lcd_inited);
                 /*for (i=0; i<1000; i++) {
