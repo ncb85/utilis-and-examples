@@ -9,7 +9,7 @@ char user_response[82], p;
 int time, lcd_inited = -1;
 int result = -1, err1 = -1, err2 = -1, adr1 = -2, adr2 = -2;
 int secs = 0, minutes = 0, value;
-char LCDMSG[] = {116,101,115,116,32,79,75,7,6,5,4,3,2,1,0};
+char LCDMSG[] = {7,116,101,115,116,32,79,75,6,5,4,3,2,1,0}; //>test OK<
 unsigned char custom_char[] = {                     // define 8 custom LCD chars
     0x00,0x00,0x0A,0x00,0x00,0x11,0x0E,0x00,        // 0. SMILEY
     0x04,0x0E,0x0E,0x0E,0x1F,0x00,0x04,0x00,        // 1. BELL
@@ -280,30 +280,31 @@ main(int argc, int argv[]) {
             case 'b':
                 printf("\nSending text to LCD\n");
                 if (lcd_inited != 0) {
-                    printf("init\n");
                     lcd_inited = lcd_init();
-                    lcd_on();
-                    lcd_clr();
                     //init 8 custom chars
                     for (i=0; i<8;i++) {
                         lcd_udg(custom_char+i*8, i);
                     }
                 }
                 if (lcd_inited == 0) {
-                    printf("already initialsed\n");
-                    lcd_home();
-                    lcd_str(LCDMSG);
+                    lcd_on(); // backlight on
+                    lcd_clr(); // clear screen
+                    lcd_home(); // cursor home
+                    lcd_str(LCDMSG); // print msg
                 }
-                report(lcd_inited);
-                /*for (i=0; i<1000; i++) {
+                for (i=0; i<10000; i++) {
+                    i = i;
+                }
+                for (i=0; i<1000; i++) {
                     sprintf(buff, "%d", i);
 #asm
                     mvi h, 0        ; column
                     mvi l, 1        ; row
 #endasm                    
-                    lcd_pos();
-                    lcd_str(buff);
-                }*/
+                    lcd_pos(); // goto row 1, col 0
+                    lcd_str(buff); // print msg
+                }
+                report(lcd_inited);
                 break;
             default:
                 break;

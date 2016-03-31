@@ -11,58 +11,45 @@
 ; commands
 LCD_CLEARDISPLAY    .equ    0x01
 LCD_RETURNHOME      .equ    0x02
-; LCD_ENTRYMODESET 0x04
+LCD_ENTRYMODESET    .equ    0x04
 ; LCD_DISPLAYCONTROL 0x08
 ; LCD_CURSORSHIFT 0x10
 ; LCD_FUNCTIONSET 0x20
-; LCD_SETCGRAMADDR 0x40
-; LCD_SETDDRAMADDR 0x80
+LCD_SETCGRAMADDR    .equ    0x40
+LCD_SETDDRAMADDR    .equ    0x80
 ; flags for display entry mode
 ; LCD_ENTRYRIGHT 0x00
-; LCD_ENTRYLEFT 0x02
+LCD_ENTRYLEFT       .equ    0x02
 ; LCD_ENTRYSHIFTINCREMENT 0x01
 ; LCD_ENTRYSHIFTDECREMENT 0x00
 ; flags for display on/off control
-; LCD_DISPLAYON 0x04
+LCD_DISPLAYON       .equ    0x04
 ; LCD_DISPLAYOFF 0x00
 ; LCD_CURSORON 0x02
 ; LCD_CURSOROFF 0x00
 ; LCD_BLINKON 0x01
 ; LCD_BLINKOFF 0x00
 ; flags for display/cursor shift
-; LCD_DISPLAYMOVE 0x08
+LCD_DISPLAYMOVE     .equ    0x08
 ; LCD_CURSORMOVE 0x00
 ; LCD_MOVERIGHT 0x04
 ; LCD_MOVELEFT 0x00
 ; flags for function set
+LCD_FUNCTSET        .equ    0x20
 ; LCD_8BITMODE 0x10
-; LCD_4BITMODE 0x00
-; LCD_2LINE 0x08
+LCD_4BITMODE        .equ    0x00
+LCD_2LINE           .equ    0x08
 ; LCD_1LINE 0x00
 ; LCD_5x10DOTS 0x04
 ; LCD_5x8DOTS 0x00
 ; I2C backpack pin definitions LCD -> PCF
-; DB7 -> P7, DB6 -> P6, DB5 -> P5, DB4 -> P4
+; DB7 -> Pin 7, DB6 -> Pin 6, DB5 -> Pin 5, DB4 -> Pin 4
 ; flags for backlight control
-LCD_BACKLIGHT       .equ    0x08 ; P3
-LCD_NOBACKLIGHT     .equ    0x00
-; En 0b00000100  // Enable pin/bit -> P2
-; Rw 0b00000010  // Read/Write pin/bit, 0 write, 1 read -> P1
-; Rs 0b00000001  // Register select pin/bit, 0 data, 1 command -> P0
-; ============================================
-; requires I2C driver
-; ============================================
-; public functions and procedures:
-; LCDINI     - display initialization
-; LCDON      - backlight on  (one more command needed to switch on, e. g. LCDHOME)
-; LCDOFF     - backlight off (one more command needed to switch off)
-; LCDHOME    - set cursot to top-left position
-; LCDPOS     - set cursor position to x (col), y (row)
-; LCDCHR     - show char on cursor position
-; LCDSTR     - show null-terminated string, starting from cursor position
-; LCDCLR     - clear display
-; LCDUDG     - create user-defined graphic character
-; ============================================
+LCD_BACKLIGHT       .equ    0b00001000 ; Pin 3
+LCD_NOBACKLIGHT     .equ    0
+LCD_ENABLE_PIN      .equ    0b00000100 ; Pin 2
+LCD_READ_PIN        .equ    0b00000010 ; Pin 1, 0 write, 1 read
+LCD_DATA_PIN        .equ    0b00000001 ; Pin 0, 1 data, 0 command
 ; addressing of 3rd and 4th row may be different !
 ; read LCD datasheet and check LCDPOS function
 PCF8574_ADDR    .equ    0x4E            ; I2C interface address
@@ -73,34 +60,34 @@ INIT_SEQ2:      .db     0b00100100, 0b00100000  ; finally switch to 4 bits mode,
                 ; 
 lcd_init:       ; display initialization
                 lxi     h, INIT_SEQ1
-                mvi     c, 2
+                mvi     c, 2            ; 2 bytes
                 call    bckpkgsend      ; send over i2c to LCD backpack
                 lxi     h, 2000
                 call    wait            ; delay 20ms
                 lxi     h, INIT_SEQ1
-                mvi     c, 2
+                mvi     c, 2            ; 2 bytes
                 call    bckpkgsend      ; send over i2c to LCD backpack
                 lxi     h, 2000
                 call    wait            ; delay 20ms
                 lxi     h, INIT_SEQ1
-                mvi     c, 2
+                mvi     c, 2            ; 2 bytes
                 call    bckpkgsend      ; send over i2c to LCD backpack
                 lxi     h, 1000
                 call    wait            ; delay 10ms
                 ; and now set 4 bit mode
                 lxi     h, INIT_SEQ2
-                mvi     c, 2
+                mvi     c, 2            ; 2 bytes
                 call    bckpkgsend      ; send over i2c to LCD backpack
                 lxi     h, 200
                 call    wait            ; delay
                 ; hope it is in 4-bits mode so we can send next few commands
-                mvi     a, 0x28         ; 4 bit mode, 2 lines, 5x7 font
+                mvi     a, LCD_FUNCTSET + LCD_4BITMODE + LCD_2LINE ; 4 bit mode, 2 lines, 5x7 font
                 call    lcdcmd          ; send command
-                mvi     a, 0x0C         ; display ON cursor OFF
+                mvi     a, LCD_DISPLAYON + LCD_DISPLAYMOVE ; display ON cursor OFF
                 call    lcdcmd
-                mvi     a, 0x06         ; set entry mode (auto increment)
+                mvi     a, LCD_ENTRYMODESET + LCD_ENTRYLEFT ; set entry mode (auto increment)
                 call    lcdcmd
-                mvi     a, 0x80         ; cursor to line 1
+                mvi     a, LCD_SETDDRAMADDR ; cursor to line 1
                 call    lcdcmd
                 ret
 ; turn backlight on
@@ -114,7 +101,7 @@ lcd_off:        xra     a
 ; cursor home
 lcd_home:       mvi     a, LCD_RETURNHOME
                 call    lcdcmd          ; cursor to home
-                lxi	h, 200       ; delay
+                lxi	h, 200          ; delay
                 call	wait
                 ret
 ; display one character, char ascii code in HL
@@ -158,7 +145,7 @@ lcd_udg:        pop     b               ; return address
                 rlc                     ; multiply by 8 (each character has 8 bytes)
                 rlc
                 rlc
-                ori     0b01000000      ; Set CG RAM command
+                ori     LCD_SETCGRAMADDR ; Set CG RAM command
                 call    lcdcmd
                 pop     h               ; restore HL
                 mvi     b, 8            ; eight bytes for character
@@ -193,12 +180,12 @@ lcdst0:         mov     a, m            ; read char
 lcdata:         push    d               ; backup DE
                 mov     d, a            ; backup value
                 lda     LCDLIGHT        ; get LIGHT bit
-                ori     0b00000101      ; ENABLE, DATA
+                ori     LCD_ENABLE_PIN + LCD_DATA_PIN ; ENABLE, DATA
                 jmp     lcdsnd          ; continue
 lcdcmd:         push    d               ; backup DE
                 mov     d, a            ; backup value
                 lda     LCDLIGHT        ; get LIGHT bit
-                ori     0b00000100      ; ENABLE, CMD
+                ori     LCD_ENABLE_PIN      ; ENABLE, CMD
                 ;                         fall through
 lcdsnd:         mov     e, a            ; move control pins to E
                 mov     a, d            ; restore value
@@ -207,7 +194,7 @@ lcdsnd:         mov     e, a            ; move control pins to E
                 ana     c               ; mask out low bits
                 ora     e               ; LIGHT, ENABLE, R/W, CMD/DATA
                 sta     LCD_BUF_CMDDAT  ; I2C msg's first byte
-                ani     0b11111011      ; pulse ENABLE bit
+                ani     ~LCD_ENABLE_PIN ; pulse ENABLE bit
                 sta     LCD_BUF_CMDDAT+1; msg second byte
                 mov     a, d            ; restore value
                 rlc                     ; swap nibbles
@@ -217,7 +204,7 @@ lcdsnd:         mov     e, a            ; move control pins to E
                 ana     c               ; mask out high(swapped low nibble) bits
                 ora     e               ; complete with control pins
                 sta     LCD_BUF_CMDDAT+2; msg third byte
-                ani     0b11111011      ; pulse ENABLE bit
+                ani     ~LCD_ENABLE_PIN ; pulse ENABLE bit
                 sta     LCD_BUF_CMDDAT+3; msg fourth byte
                 ; send prepared msg
                 lxi     h, LCD_BUF_CMDDAT
