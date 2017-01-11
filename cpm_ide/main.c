@@ -236,8 +236,9 @@ report() {
     printf("Heads: %u\n", hds);
     printf("Sectors: %u\n", scts);
     if (cls > 0 && hds > 0 && scts > 0) {
-        printf("Accept geometry? (y/n)\n");
+        printf("Accept geometry? (y/n)");
         msg[0] = console_getc();
+        printf("\n");
         if (msg[0] == 'y') {
             heads = hds;
             cylinders = cls;
@@ -399,8 +400,8 @@ main(int argc, int argv[]) {
     while(1) {
         do {
             printf("Menu:\ne. exit, n. init IDE, t. reset IDE, s. status, c. drive ID, r. read sector\n");
-            printf("w. write sector, u. spin up, o. spin down, d. dump buffer., l. fill buffer\n");
-            printf("f.format disk, g. choose geometry CHS or LBA");
+            printf("w. write sector, u. spin up, o. spin down, d. dump buffer, l. fill buffer\n");
+            printf("f. format disk, g. choose geometry CHS or LBA addressing");
             printf("\nYour choice?\n");
             p = console_getc();
         } while (p < 'a' || p > 'z');
