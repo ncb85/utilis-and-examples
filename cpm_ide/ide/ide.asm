@@ -38,7 +38,6 @@
                 ;internal ram usage
 lba_flag:       .db  0                      ;0 - use CHS geometry, 0x40 (bit 6) use LBA28
 LBA:            .db  0,0,0,0                ;4 bytes, 28 bit Logical Block Address
-;stack           .equ  0x40  
 BUFFER:         .ds  512                    ;a 512 byte buffer
                 ;
                 ;8255 chip address
@@ -181,7 +180,7 @@ ide_wait_not_busy:
                 mov a,l                     ;status to acc
                 ret
                 ;
-                ;Wait for the drive to become not busy
+                ;Wait for the drive to ready
                 ;Returns the drive's status in Acc TODO use ide_wait_not_busy
 ide_wait_ready: call ide_get_status         ;read status reg
                 ;should probably check for a timeout here
@@ -400,8 +399,7 @@ wr_lba:         lda LBA+3                   ;load acc from LBA+3, bits 31-24
                 ;input ACC = ide register address
                 ;output L = lower byte read from ide drive
                 ;output H = upper byte read from ide drive
-ide_rd_16:
-                out IDE_8255_CTL            ;drive address onto control lines
+ide_rd_16:      out IDE_8255_CTL            ;drive address onto control lines
                 ori IDE_RD_LINE             ;assert read pin
                 out IDE_8255_CTL            ;
                 in IDE_8255_MSB             ;read the upper byte
