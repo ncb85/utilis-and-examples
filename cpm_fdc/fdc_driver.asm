@@ -8,11 +8,11 @@
                 .globl  fd_nsc, fd_msr, fd_init, sense_intrpt, fd_format, motor_off
                 .globl  sector_nr, track_nr, drive_nr, head_nr
                 .globl  status_reg_0, status_reg_1, status_reg_2, status_reg_3
-                .globl  sector_fnr, number_of_sctrs, dbuffer, NUMBER_OF_BYTES
+                .globl  sector_fnr, number_of_sctrs, dbuffer, NUMBER_OF_BYTES, SECTOR_SIZE
                 .globl  ccr_dsr_value, mode3_value, gap_length, gap3_length
                 .globl  set_drv_type0, set_drv_type1, set_drv_type2, set_drv_type3
-                .globl  interpt_65, fd_exec_cmd
-                .globl  fdc_asm_end
+                .globl  set_drv_type4, set_drv_type5, interpt_65, fd_exec_cmd
+                .globl  fdc_asm_end, CMD_READ, CMD_WRITE, CMD_FORMAT
 
 CRYSTAL         .equ 16                 ;8MHz 8085 (works fine for CPUs 4-12MHz) 
 
@@ -23,8 +23,8 @@ FDC_READ        .equ 2
 FDC_WRITE       .equ 3
 
 READ_RETRY      .equ 3                  ;when read sector fails, retry it n times
-
-RST65_ADDR      .equ    0x0034          ;6.5 interrupt vector
+RST65_ADDR      .equ 0x0034             ;6.5 interrupt vector
+MOTOR_TIMEOUT   .equ 4                  ;seconds motor timeout
 
 ticks:          .db 0                   ;8155/8253 timer ticks
 seconds:        .db 0                   ;motor time off
@@ -44,14 +44,15 @@ DRIVE_3_DOR     .equ 0x87               ;motor on & drive select, no DMA&INT
 CNF_250         .equ 0x02               ;250kbps data rate (360kB, 720kB)
 CNF_300         .equ 0x01               ;300kbps data rate (360kB disk in 1.2MB drive)
 CNF_500         .equ 0x00               ;500kbps data rate (1.2MB, 1.44MB)
-;MODE_BYTE1      .equ 0xC6               ;mode2, no NSC imp.seek (better use 82077 method), ISO, auto low pwr
-MODE_BYTE1      .equ 0x86               ;mode2, no imp.seek, IBM, auto low pwr
+;MODE_BYTE1      .equ 0x86               ;mode2, no NSC imp.seek (better use 82077 method), ISO, auto low pwr
+MODE_BYTE1      .equ 0x06               ;mode1, no imp.seek, IBM, auto low pwr
 MODE_BYTE2      .equ 0x00               ;FIFO enabled, few tracks
 MODE_BYTE3      .equ 0xC2               ;def.densel, 2x8ms head settle time
 ;MODE_BYTE3      .equ 0xC1               ;def.densel, 1x8ms head settle time
 MODE_BYTE4      .equ 0x00               ;dskchg default
-SPECIFY_BYTE1   .equ 0xCA               ;step rate 8ms, motor off 10s
-SPECIFY_BYTE2   .equ 0x05               ;2x64ms motor on delay, no DMA
+SPECIFY_BYTE1   .equ 0xCA               ;step rate 8/4ms, motor off 10s
+;SPECIFY_BYTE1   .equ 0xEA               ;step rate 4/2ms, motor off 10s
+SPECIFY_BYTE2   .equ 0x03               ;1ms motor on delay, no DMA
                 ; fdc commands
 CMD_RESET       .equ 0x80               ;reset fdc by pulling bit 7 high
 CMD_INIT        .equ 0x04               ;unset reset bit, no DMA
@@ -93,6 +94,7 @@ ST2_MISADR      .equ 0x13
 ST2_SCANNO      .equ 0x14
 ST_TOO_MANY     .equ 0x15
 CMD_ABORT       .equ 0x16
+SECTOR_SIZE:    .db 0                   ;256 bytes
                 ; do not change order of following lines
                 ; read/write param table (set at runtime)
 drive_nr:       .db 0                   ;drive
@@ -115,9 +117,6 @@ sector_fnr:     .db 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18
 DATA_PATTERN:   .db 0xE5                ;format pattern
                 ; data buffer
 dbuffer:        .ds 256                 ;sector data buffer
-                ; flag area
-drive_calib_0:  ;.db 0                   ;0 not calibrated, 1 recalibrated
-drive_calib_1:  ;.db 0                   ;0 not calibrated, 1 recalibrated
                 ; results area
 status_reg_0:   .db 0                   ;status register 0
 status_reg_1:   .db 0                   ;status register 1
@@ -129,11 +128,14 @@ status_reg_3:   .db 0                   ;status register 3, bit 6 - write protec
 fdc_extraloop:  .db 0                   ;used in some time loops
                 ;
                 ; table with drive type params(density,sectors,tracks,GAP,GAP3,densel)
-table_drv_typ0: .db CNF_250, 18, 40, 0x0A, 0x0C, 0xC2
-table_drv_typ1: .db CNF_250, 18, 80, 0x0A, 0x0C, 0xC2
-table_drv_typ2: .db CNF_500, 26, 80, 0x0E, 0x36, 0xC2
-table_drv_typ3: .db CNF_500, 32, 80, 0x0E, 0x36, 0x02
-                ; set drive type (0-360kb, 1-720kb, 2-1.2M, 3-1.44M)
+table_drv_typ0: .db CNF_250, 18, 40, 0x0A, 0x0C, 0xC2   ; 360kB 5.25" DD/40tracks standard drive
+table_drv_typ1: .db CNF_250, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 5.25" DD/80tracks special drive (TEAC FD-55F)
+table_drv_typ2: .db CNF_500, 26, 80, 0x0E, 0x36, 0xC2   ; 1.2MB 5.25" HD drive
+table_drv_typ3: .db CNF_500, 32, 80, 0x0E, 0x36, 0x02   ; 1.44MB 3.5" HD drive
+table_drv_typ4: .db CNF_300, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 5.25" HD drive
+table_drv_typ5: .db CNF_500, 26, 77, 0x0E, 0x36, 0xC2   ; 500(SS)/1MB(DS) or 500kB(SS) 8" DD drive
+table_drv_typ6: .db CNF_250, 26, 77, 0x07, 0x1B, 0x02   ; 250(SS)/250kB(SS) 8" SD drive
+                ; set drive type (0-360kb, 1-720kb, 2-1.2M, 3-1.44M, 4-720kb, 5-1M)
 set_drv_type0:  lxi h, table_drv_typ0
 set_drv_type:   mov a,m
                 sta ccr_dsr_value       ;data rate
@@ -157,14 +159,15 @@ set_drv_type:   mov a,m
                 call fd_mode            ;use new value
                 ret
 set_drv_type1:  lxi h, table_drv_typ1
-                call set_drv_type
-                ret
+                jmp set_drv_type
 set_drv_type2:  lxi h, table_drv_typ2
-                call set_drv_type
-                ret
+                jmp set_drv_type
 set_drv_type3:  lxi h, table_drv_typ3
-                call set_drv_type
-                ret
+                jmp set_drv_type
+set_drv_type4:  lxi h, table_drv_typ4
+                jmp set_drv_type
+set_drv_type5:  lxi h, table_drv_typ5
+                jmp set_drv_type
                 ;
                 ; long delay, cca 3ms
 long_delay:     push b
@@ -558,8 +561,8 @@ fd_format:      mvi a,CMD_FORMAT        ;command phase
                 jc fo_error
                 lxi h, dbuffer
                 lda  number_of_sctrs    ;we'll transfer 4x number of sectors bytes
-                add a
-                add a
+                add a                   ;x2
+                add a                   ;x4
                 mov e,a                 ;pass count in DE
                 mvi d,0
                 jmp fd_write_start      ;format all sectors on track
@@ -572,7 +575,8 @@ fd_write:       mvi a, CMD_WRITE        ;command phase
                 call write_byte
                 call send_head_drv      ;send head << 2 | drive byte
                 call fd_cmd_pha         ;send 7 param bytes
-                mvi e,0                 ;sector size 256 bytes
+                lda SECTOR_SIZE         ;128 FM or 256 MFM
+                mov e,a                 ;sector size 256 bytes
                 lxi h,dbuffer           ;execution phase
 fd_write_start: mvi a,(CRYSTAL/2+8)/4   ;start write
                 sta fdc_extraloop
@@ -632,7 +636,8 @@ fd_read:        mvi a, CMD_READ         ;command phase
                 lxi h,dbuffer           ;execution phase
                 mvi a,(CRYSTAL/2+8)/4   ;
                 sta fdc_extraloop
-                mvi e,0                 ;sector size 256 bytes
+                lda SECTOR_SIZE         ;128 FM or 256 MFM
+                mov e,a                 ;sector size 256 bytes
 fd_read_outlo:  mvi c,0                 ;outer loop 256x
 fd_read_inrlo:  mvi b,0                 ;inner loop 256x
 fd_read_l1:     in REG_MSR
@@ -687,11 +692,14 @@ timer_motor_off:; pulse frequency 10Hz
                 mvi a,0x3C
                 out 0x18
                 ; hook up interrupt handler
-                mvi a,0xC3          ;JUMP instruction
-                sta RST65_ADDR      ;timer is connected to 6.5 interrupt
-                lxi h,interpt_65    ;routine's address
-                shld RST65_ADDR+1 ;
-                mvi a,0b00011100    ;set interrupt mask, enable 6.5, 5.5
+                mvi a,0xC3				;JUMP instruction
+                sta RST65_ADDR			;timer is connected to 6.5 interrupt
+                lxi h,interpt_65		;routine's address
+                shld RST65_ADDR+1		;
+                ;mvi a,0b00011100		;set interrupt mask, enable 6.5, 5.5
+				rim						;get interrupt status
+				ani 0b00001101			;set interrupt mask enable 6.5
+				ori 0b00001000			;
                 sim
                 ei
                 ret
@@ -712,14 +720,16 @@ interpt_65:     push psw
                 lda seconds
                 inr a
                 sta seconds
-                cpi 10                  ;10s motor off time
+                cpi MOTOR_TIMEOUT       ;motor off time
                 jc 2$
                 xra a
                 sta seconds
                 lda motor_count         ;motor on?
                 cpi 1
                 jnz 2$
-                mvi a,0b00011110        ;set interrupt mask, enable only 5.5 uart (not 6.5 timer)
+                rim						;get interrupt status
+				ani 0b00001111			;set interrupt mask disable 6.5
+				ori 0b00001010			;
                 sim
                 call motor_off          ;stop motor
                 xra a                   ;save 0
@@ -739,13 +749,6 @@ fd_exec_cmd:    push psw
                 cpi FDC_RECALIB         ;recalibrate
                 jnz 1$
                 call fd_recalib
-                ;lda drive_nr            ;set drive's calibrate flag
-                ;cpi 0x01                ;TODO for up to 4 drives
-                ;mvi a,0x01              ;set to 1
-                ;jz sen_mark1
-                ;sta drive_calib_0
-                ;jmp sense_exit
-;sen_mark1:      ;sta drive_calib_1      ;mark drive 1
                 jmp 8$
 1$:             cpi FDC_SEEK            ;seek track
                 jnz 2$
@@ -807,9 +810,6 @@ fd_motor_off:   lda motor_count
                 xra a
                 sta ticks               ;clear interval
                 sta seconds
-                ;mvi a,0b00011100        ;set interrupt mask, enable 5.5 uart and 6.5 timer
-                ;sim
-                ;ei
                 call timer_motor_off
 1$:             ret
 fdc_asm_end:

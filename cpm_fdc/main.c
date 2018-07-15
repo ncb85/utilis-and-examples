@@ -7,11 +7,12 @@
 #define CTRL_C                  0x03
 
 char user_response[82], drv;
-unsigned int num_of_tracks;
+unsigned int num_of_tracks, single_sided;
 extern unsigned char status_reg_0, status_reg_1, status_reg_2, status_reg_3;
-extern unsigned char number_of_sctrs, NUMBER_OF_BYTES, sector_fnr[], dbuffer[];
+extern unsigned char number_of_sctrs, NUMBER_OF_BYTES, SECTOR_SIZE, sector_fnr[], dbuffer[];
 extern unsigned char head_nr, track_nr, sector_nr, drive_nr;
 extern unsigned char ccr_dsr_value, mode3_value, GAP_LENGTH, GAP3_LENGTH;
+extern unsigned char CMD_FORMAT, CMD_READ, CMD_WRITE;
 
 // SmallC recognizes define "smallc", Netbeans not
 #ifndef smallc
@@ -19,6 +20,8 @@ set_drv_type0();
 set_drv_type1();
 set_drv_type2();
 set_drv_type3();
+set_drv_type4();
+set_drv_type5();
 fd_nsc();
 fd_init();
 fd_msr();
@@ -34,6 +37,7 @@ fd_format();
  * @return 
  */
 set_drive_type(char p) {
+    single_sided = 0;
     switch (p) {
         case '0': // 5.25, 360k, DD, 40 tracks
             set_drv_type0();
@@ -46,6 +50,25 @@ set_drive_type(char p) {
             break;
         case '3': // 3.5, 1.44M, HD, 80 tracks
             set_drv_type3();
+            break;
+        case '4': // 5.25, 720k, DD in HD drive, 360rpm, 80 tracks
+            set_drv_type4();
+            break;
+        case '5': // 8, 1M, DS/DD drive, 360rpm, 77 tracks
+            set_drv_type5();
+            break;
+        case '6': // 8, 500k, SS/DD drive, 360rpm, 77 tracks
+            set_drv_type5();
+            single_sided = 1;
+            break;
+        case '7': // 8, 250k, SS/SD drive, 360rpm, 77 tracks
+            set_drv_type5();
+            single_sided = 1;
+            CMD_FORMAT &= 0xBF; // bit 6 of command is FM/MFM flag, set 0
+            CMD_READ &= 0xBF;   // bit 6 of command is FM/MFM flag, set 0
+            CMD_WRITE &= 0xBF;  // bit 6 of command is FM/MFM flag, set 0
+            NUMBER_OF_BYTES = 0;// 128 byte sectors
+            SECTOR_SIZE = 128;
             break;
         default:
             break;
@@ -71,7 +94,7 @@ generate_sec_numbers(int interl) {
               break;
         }
         j += interl;
-        /*skip positions that already have number*/
+        //skip positions that already have number
 	    while (j >= number_of_sctrs || sector_fnr[j] != 255) {
             if (j >= number_of_sctrs) {
                 j -= number_of_sctrs;
@@ -133,7 +156,8 @@ cmd_format(int ptrack_nr, int phead_nr) {
         j = 4 * i;
         dbuffer[j++] = ptrack_nr;
         dbuffer[j++] = phead_nr;
-        dbuffer[j++] = sector_fnr[i];
+        // for FM 128 byte sectors count from 1, for MFM from 0
+        dbuffer[j++] = NUMBER_OF_BYTES == 0 ? sector_fnr[i] + 1 : sector_fnr[i];
         dbuffer[j] = NUMBER_OF_BYTES;
     }
     drive_nr = drv;
@@ -171,22 +195,10 @@ cmd_write(int ptrack_nr, int psector_nr, int phead_nr) {
 #endif    
 }
 
-print_buffer() {
-    int i;
-    char p;
-	for (i=0; i<256; i++) {
-        p = dbuffer[i];
-        if (p < 32 || p > 126) {
-            p = '.';
-        }
-        printf("%c", p);
-    }
-}
-
 dump_buffer() {
     int i,j;
     unsigned char p;
-	for (i=0; i<256; i+=16) {
+	for (i=0; i<(SECTOR_SIZE == 128 ? 128 : 256); i+=16) {
         printf("\n");
         for (j=0; j<16; j++) {
             p = dbuffer[i+j];
@@ -204,17 +216,18 @@ dump_buffer() {
 }
 
 fill_buffer() {
-    int i, j;
+    int i, j, k;
     char p;
     j = 0;
+    k = SECTOR_SIZE == 128 ? 128 : 256;
     printf("press a letter to fill the buffer with");
     p = console_getc();
-	for (i=0; i<256; i++) {
+	for (i=0; i<k; i++) {
         for (;i<10;i++) {
             dbuffer[i] = '0' + i;
         }
         dbuffer[i] = p;
-        for (;i>250 && i<256;i++) {
+        for (;i>(k-5) && i<k;i++) {
             dbuffer[i] = p + ++j;
         }
     }
@@ -381,15 +394,27 @@ get_track_nr() {
 
 get_sector_nr() {
     int sector_nr;
-    do {
-        printf("\nsector number? (0-%d)\n", number_of_sctrs-1);
-        sector_nr = get_number();
-    } while (sector_nr < 0 || sector_nr > number_of_sctrs-1);
+    // IBM FM 128 byte sector, NUMBER_OF_BYTES is 0
+    if (NUMBER_OF_BYTES == 0) { // 128 x 2^0
+        // IBM counts sectors from 1
+        do {
+            printf("\nsector number? (1-%d)\n", number_of_sctrs);
+            sector_nr = get_number();
+        } while (sector_nr < 1 || sector_nr > number_of_sctrs);
+    } else { // my own format starts from zero, PC8477 has no problem with it
+        do {
+            printf("\nsector number? (0-%d)\n", number_of_sctrs-1);
+            sector_nr = get_number();
+        } while (sector_nr < 0 || sector_nr > number_of_sctrs-1);
+    }
     return sector_nr;
 }
 
 get_head_nr() {
     int head_nr;
+    if (single_sided) {
+        return 0;
+    }
     do {
         printf("\nhead number? (0-1)\n");
         head_nr = get_number();
@@ -412,17 +437,21 @@ get_interleave() {
  */
 main(int argc, int argv[]) {
     char p;
-    int track_nr, sector_nr, head_nr, interleave, result;
-    int error, stop, alloc_unit, position;
+    int track_nr, sector_nr, sec_nr, head_nr, interleave, result;
+    int error, stop, alloc_unit, position, dump_disk;
     
     printf("FDC test for floppy drive\n");
     printf("Press 0 for 5.25\", double density, 40 tracks, (360k)\n");
     printf("Press 1 for 5.25\", double density, 80 tracks, (720k)\n");
     printf("Press 2 for 5.25\", high density, 80 tracks, (1.2M)\n");
     printf("Press 3 for 3.5\", high density, 80 tracks, (1.44M)\n");
+    printf("Press 4 for 5.25\", double density, HD drive, 360rpm, 80 tracks(720k)\n");
+    printf("Press 5 for 8\", double sided, double density, 360rpm, 77 tracks(1M)\n");
+    printf("Press 6 for 8\", single sided, double density, 360rpm, 77 tracks(500k)\n");
+    printf("Press 7 for 8\", single sided, single density, 360rpm, 77 tracks(250k)\n");
     do {
         p = console_getc();
-    } while (p < '0' || p > '3');
+    } while (p < '0' || p > '7');
     set_drive_type(p);
     printf("\nPress 0..3 for drive number\n");
     do {
@@ -451,10 +480,14 @@ main(int argc, int argv[]) {
                 track_nr = get_track_nr();
                 interleave = get_interleave();
                 generate_sec_numbers(interleave);
-                    if (cmd_format(track_nr, 0) == -1 || cmd_format(track_nr, 1) == -1) {
-                        printf("\nformat track failed\n");
-                        break;
-                    }
+                if (cmd_format(track_nr, 0) == -1) {
+                    printf("\nformat track failed (head 0)\n");
+                    break;
+                }
+                if (!single_sided && cmd_format(track_nr, 1) == -1) {
+                    printf("\nformat track failed (head 1)\n");
+                    break;
+                }
                 break;
             case 'd':
                 printf("\nFormating disk (%d sectors per track, %d tracks)\n", number_of_sctrs, num_of_tracks);
@@ -464,8 +497,12 @@ main(int argc, int argv[]) {
                 for (track_nr = 0; track_nr < num_of_tracks; track_nr++) {
                     printf("%02d", track_nr);
                     cmd_seek_track(track_nr);
-                    if (cmd_format(track_nr, 0) == -1 || cmd_format(track_nr, 1) == -1) {
-                        printf("\nformat failed\n");
+                    if (cmd_format(track_nr, 0) == -1) {
+                        printf("\nformat track failed (head 0)\n");
+                        break;
+                    }
+                    if (!single_sided && cmd_format(track_nr, 1) == -1) {
+                        printf("\nformat track failed (head 1)\n");
                         break;
                     }
                     if (track_nr < num_of_tracks-1) {
@@ -497,19 +534,27 @@ main(int argc, int argv[]) {
             case 'k':
                 error = 0;
                 stop = 0;
+                // dump old FM disks
+                dump_disk = 0;
                 printf("\nReading disk (%d sectors per track, %d tracks)", number_of_sctrs, num_of_tracks);
                 printf("\ncurrent track:");
                 for (track_nr = 0; track_nr < num_of_tracks && stop == 0; track_nr++) {
                     printf("%02d", track_nr);
-                    for (head_nr = 0; head_nr < 2 && stop == 0; head_nr++) {
+                    for (head_nr = 0; head_nr < (single_sided ? 1 : 2) && stop == 0; head_nr++) {
                         for (sector_nr = 0; sector_nr< number_of_sctrs && stop == 0; sector_nr++) {
-                            if ((result = cmd_read(track_nr, sector_nr, head_nr)) != 0) {
+                            // IBM counts sectors from 1, NUMBER_OF_BYTES is FM IBM -> sector_nr+1
+                            sec_nr = NUMBER_OF_BYTES == 0 ? sector_nr+1 : sector_nr;
+                            if (dump_disk) {
+                                // print sector number
+                                printf("%02d", sec_nr);
+                            }
+                            if ((result = cmd_read(track_nr, sec_nr, head_nr)) != 0) {
                                 if (error == 0) {
                                     printf("\nerror reading sector(head):\n%02d", track_nr);
                                 }
                                 error = 1;
                                 printf(" %d(%d)", sector_nr, head_nr);
-                                alloc_unit = track_nr * number_of_sctrs * 2;
+                                alloc_unit = track_nr * number_of_sctrs * (single_sided ? 1 : 2);
                                 alloc_unit += head_nr * number_of_sctrs + sector_nr;
                                 position = alloc_unit % 8;
                                 alloc_unit /= 8;
@@ -517,13 +562,19 @@ main(int argc, int argv[]) {
                                 report(result, 0);
                                 // TODO save bad sectors in an array and lock them out later
                             }
+                            // dump old FM disks
+                            if (dump_disk) {
+                                // dump sector data
+                                dump_buffer();
+                            }
+                            // user break
                             p = console_keypress();
                             if (p == CTRL_C) { // terminate reading?
                                 stop = 1;
                             }
                         }
                     }
-                    if (track_nr < num_of_tracks-1 && stop == 0) {
+                    if (!dump_disk && track_nr < num_of_tracks-1 && stop == 0) {
                         printf("%c%c", 8, 8); //2x backspace
                     }
                 }
