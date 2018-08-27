@@ -1,0 +1,1 @@
+Play with terminal set ANSI(w) emulation
