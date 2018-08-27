@@ -1,7 +1,7 @@
 # utilis-and-examples
 This is a collection of utilities (FDC.COM) and few SmallC examples
 
-FDC.COM is a program that can format floppy diskettes for use with NCB85 V2.1 BIOS. It can format, read, write 1.44MB, 1.2MB and 360kB diskettes.
+FDC.COM is a program that can format floppy diskettes for use with NCB85 V2.1 BIOS. It can format, read, write 1.44MB, 1.2MB, 1.0MB, 720kB, 500kB, 360kB and 250kB diskettes (3.5", 5.25", 8", FM,MFM)
 
 IIC.COM is a program that can test some I2C periferials, set time and date on on-board RTC DS1307.
 
