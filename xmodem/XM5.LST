@@ -1,0 +1,2471 @@
+0001   0000             ;
+0002   0000             ;	XMODEM.ASM V5.0, by Keith Petersen, W8SDZ
+0003   0000             ;		   (revised 6/8/82)
+0004   0000             ;
+0005   0000             ;	REMOTE CP/M - CP/M FILE TRANSFER PROGRAM
+0006   0000             ;
+0007   0000             ;Based on MODEM.ASM V2.0, by Ward Christensen.
+0008   0000             ;This program is intended for use on remote CP/M
+0009   0000             ;systems where it is important that the initialization
+0010   0000             ;of the modem not be changed, such as when using
+0011   0000             ;the PMMIBYE program. The baud rate and number of bits
+0012   0000             ;remains the same as whatever was set previously.
+0013   0000             ;There is no disconnect, terminal or echo option.
+0014   0000             ;
+0015   0000             ;Updates/fixes (in reverse order to minimize reading time):
+0016   0000             ;
+0017   0000             ;6/8/82    Added file transfer logging  feature. Enabled  with
+0018   0000             ;		 the  equate  variable LOGCAL,  it uses  caller 
+0019   0000             ;		info   provided  by  the  RCPM  file   LASTCALR 
+0020   0000             ;		together with transferred file name,  size  and 
+0021   0000             ;		direction of transfer to append each successful 
+0022   0000             ;		transfer to new special file LOG.SYS.  The user 
+0023   0000             ;		area designation for LASTCALR must be specified 
+0024   0000             ; 		by the variable LASTUSR and file is expected to 
+0025   0000             ;		reside on the DEFDRV drive. The support library 
+0026   0000             ;		SEQIO.LIB(vrs >=2.2) and the MAC assembler  are 
+0027   0000             ;		needed   ONLY if LOGCAL is true.  If logging is 
+0028   0000             ;		not desired,  or you don't have MAC then LOGCAL 
+0029   0000             ;		may  be  set false and the ASM  assembler  will 
+0030   0000             ;		work.  See  SEQIO.LIB for documentation on  the 
+0031   0000             ;		support  code.  Also made mods to  file  length 
+0032   0000             ;		printout  to  give  times for  600  baud  (PMMI 
+0033   0000             ;		only). This is optional with the LSPEED equate. 
+0034   0000             ;		If  used,  the baud rate of caller must be made 
+0035   0000             ;		available  thru  location  MSPEED(by  the   BYE 
+0036   0000             ;		program).		     Jack Riley
+0037   0000             ;04/18/82 Corrected transfer time calculations. Added optional
+0038   0000             ;	  equate, VOUT for sector count display to
+0039   0000             ;	  console output. (Must be CRT type device)
+0040   0000             ;	  Changed modem data port equates into 2 distinct
+0041   0000             ;	  booleans to accomodate a wider variety of customized
+0042   0000             ;	  EXTMOD equated modems.
+0043   0000             ;	  Changed NOCOMR option on receive to  automatic
+0044   0000             ;	  renaming of  .COM extents to .OBJ. (Howard Booker)
+0045   0000             ;
+0046   0000             ;04/01/82 Added routine to ERASE any file not properly received
+0047   0000             ;	  (gets rid of all those damn 0K files) - thanks
+0048   0000             ;	  to Skip Hansen for this one. - BHK
+0049   0000             ;
+0050   0000             ;03/28/82 Added cancel facility - if first char received 
+0051   0000             ;	  when waiting for initial nak is control-X it will
+0052   0000             ;	  cancel sending (useful for when the time estimate
+0053   0000             ;	  is longer than you want to wait). - BHK
+0054   0000             ;
+0055   0000             ;03/22/82 Added calculation of estimated transmission time
+0056   0000             ;	  when sending a file - divide # sectors by ~ 8 sectors
+0057   0000             ;	  per minute transmission speed (at 300 baud) - BHK
+0058   0000             ;
+0059   0000             ;03/08/82 Added Bruce Wood's designated user and drive area
+0060   0000             ;         routines to the original ver. 46 which contained
+0061   0000             ;         the DCH modem updates which were first included
+0062   0000             ;         on 10/19/81.  Then renamed to ver. 48A to distinguish
+0063   0000             ;         from the first ver. 48.  (Bill Aten)
+0064   0000             ;
+0065   0000             ;01/06/82 Added code to implement designated user and drive
+0066   0000             ; 	  area to receive files on.  This was put in to
+0067   0000             ;	  make it easier to locate new programs and for drives
+0068   0000             ;	  that are write protected. This change will put the file
+0069   0000             ;	  being sent into the designated area and when done return
+0070   0000             ;	  to the orginal area.
+0071   0000             ;	  SEE SETAREA LABEL IN THE CONDITIONAL SECTION  (Bruce Wood)
+0072   0000             ;
+0073   0000             ;10/19/81 Corrected numerous 'IN MODCTL2' errors for the DC
+0074   0000             ;	  Hayes modem.  Added DC Hayes detection of framing
+0075   0000             ;	  errors, overrun errors, and parity errors (if
+0076   0000             ;	  parity is used) for the receive file routine.
+0077   0000             ;	  (Bill Aten)
+0078   0000             ;
+0079   0000             ;10/12/81 Added code to implement Cyclic Redundancy
+0080   0000             ;	  Checking for both receiving and sending files.
+0081   0000             ;	  The CRC can only be specified by the operator
+0082   0000             ;	  on the receive file option as a secondary
+0083   0000             ;	  option of 'C' (XMODEM RC FN.FT).  When CRC is
+0084   0000             ;	  in effect, an initial 'C' instead of a NAK will
+0085   0000             ;	  be sent to the sender to start things off.
+0086   0000             ;	  The 'C' will be the signal to the sender
+0087   0000             ;	  (hopefully a version of MODEM that implements
+0088   0000             ;	  this CRC convention) that CRC is in effect.
+0089   0000             ;	  CRC will then take the place of the checksum
+0090   0000             ;	  checking for data validity.  The CRC should
+0091   0000             ;	  make file transfers as far as data integrity is
+0092   0000             ;	  concerned better than 99.99% error free.  The
+0093   0000             ;	  crc macro, CRC120, was used to implement CRC
+0094   0000             ;	  in this program and its equivalent version of
+0095   0000             ;	  MODEM.  Acknowledgements and thanks to Paul
+0096   0000             ;	  Hansknecht who designed and wrote CRC120.
+0097   0000             ;
+0098   0000             ;07/01/81 REDID H8/H89 EQUATES TESTED PROGRAM USING BOTH
+0099   0000             ;	  SYSTEMS AND CHANGED VER TO 4.4    (AL OLANDER)
+0100   0000             ;
+0101   0000             ;06/28/81 INSTALL H8/H89 EQUATES AND CHANGE EXTERNAL
+0102   0000             ;	  MODEM EQUATES TO "EXTMOD". (L. SHIPINSKI)
+0103   0000             ;
+0104   0000             ;05/30/81 Added IF PMMI/ENDIF to RCVERR routine to eliminate
+0105   0000             ;	  'undefined symbol' error when set for DCH modem.
+0106   0000             ;	  (Dave Hardy)
+0107   0000             ;
+0108   0000             ;05/07/81 Changed signon revision number.
+0109   0000             ;	  Cleaned up file. (KBP)
+0110   0000             ;
+0111   0000             ;05/01/81 Added detection of framing errors, overrun
+0112   0000             ;	  errors, and parity errors (if parity is used)
+0113   0000             ;	  for the receive file routine.  This feature
+0114   0000             ;	  is only active for the PMMI modem, since I
+0115   0000             ;	  do not know what the modem status bits are
+0116   0000             ;	  for IDS and D.C. Hayes modems.  If there
+0117   0000             ;	  is one of the above errors, the line will
+0118   0000             ;	  be purged for that block and a NAK will be
+0119   0000             ;	  sent to the sender for that block.  This was
+0120   0000             ;	  added to help catch those transmission errors
+0121   0000             ;	  that are not always caught by the checksum.
+0122   0000             ;	  This error checking is in addition to the
+0123   0000             ;	  checksum routine. (John Mahr)
+0124   0000             ;
+0125   0000             ;02/17/81 Added test for "f2" tagged files in OPENOK
+0126   0000             ;	  for MP/M version 1.1 compatiblity, which
+0127   0000             ;	  doesn't allow Ctl-C or Ctl-S in "f1" tagged
+0128   0000             ;	  files. (Tim Nicholas)
+0129   0000             ;
+0130   0000             ;02/16/81 Added hex to file size display. Now reports
+0131   0000             ;	  size in both decimal and (xxxxH) hex. Thanks
+0132   0000             ;	  to Ben Bronson for the idea. (Tim Nicholas)
+0133   0000             ;
+0134   0000             ;02/15/81 Added a software timer to the carrier test
+0135   0000             ;	  added in SEND and RECV routines. This will
+0136   0000             ;	  now abort only if carrier is lost for a 
+0137   0000             ;	  period of 15 seconds. This is only essential
+0138   0000             ;	  for those using external modems with certain
+0139   0000             ;	  SIO's, but will provide the PMMI/DCH user
+0140   0000             ;	  faster recovery in a lost carrier situation
+0141   0000             ;	  as well. Approx 15 seconds plus 15 seconds
+0142   0000             ;	  in BYE.COM, compared to 3 minutes at 300
+0143   0000             ;	  baud with earlier revisions. Thanks to Ben
+0144   0000             ;	  Bronson for his aid in developing this
+0145   0000             ;	  revision. (Tim Nicholas)
+0146   0000             ;
+0147   0000             ;02/14/81 Corrected error in last update which read
+0148   0000             ;	  the incorrect port for PMMI in the added
+0149   0000             ;	  carrier test. (Tim Nicholas)
+0150   0000             ;	
+0151   0000             ;01/31/81 Added equates and code for a carrier test.
+0152   0000             ;	  Test performed in modem I/O routines. This
+0153   0000             ;	  is required since loss of carrier will go
+0154   0000             ;	  undetected by BYE.COM, if the loss occurs
+0155   0000             ;	  after a sucessful XMODEM signon, when using
+0156   0000             ;	  an external modem and SIO. (Tim Nicholas)
+0157   0000             ;
+0158   0000             ;01/17/81 Re-wrote routine to calculate file size so
+0159   0000             ;         that it works correctly on v2.X systems with
+0160   0000             ;         extent folding (non-zero extent mask). (BRR)
+0161   0000             ;
+0162   0000             ;12/06/80 Re-wrote routine to calculate file size,
+0163   0000             ;	  added decimal print of file size. (KBP)
+0164   0000             ;
+0165   0000             ;12/05/80 Corrected error in use of ext byte that pre-
+0166   0000             ;	  vented files greater than one extent from 
+0167   0000             ;	  being sent.     Ron Fowler
+0168   0000             ;
+0169   0000             ;12/03/80 Corrected file extent length display. Now
+0170   0000             ;	  reports correct number of records for files
+0171   0000             ;	  longer than one extent. Display is now
+0172   0000             ;	  double precision (xxxxH). Also made some
+0173   0000             ;	  cosmetic changes by re-arranging the equates.
+0174   0000             ;	  By Tim Nicholas
+0175   0000             ;
+0176   0000             ;10/28/80 Cleaned up file. (KBP)
+0177   0000             ;
+0178   0000             ;10/23/80 Expanded conditional assembly of NOCOM routines
+0179   0000             ;	  into NOCOMS, NOLBS, and NOCOMR equates, to allow
+0180   0000             ;	  separate conditional assembly of tests for sending
+0181   0000             ;	  .COM files, sending .??# files, and receiving .COM
+0182   0000             ;	  files, respectively.	(Dave Hardy)
+0183   0000             ;
+0184   0000             ;10/15/80 Added traps for ambiguous file name or
+0185   0000             ;	  none at all. (KBP)
+0186   0000             ;
+0187   0000             ;09/09/80 Added conditional assembly to prevent filetypes
+0188   0000             ;	  '.COM' or '.??#' from being sent to distant end
+0189   0000             ;	  and added conditional assembly of test for '.COM'
+0190   0000             ;	  filetype on receive as well. See 'NOCOM' below.
+0191   0000             ;	  Any filetype ending in '#' will not be sent by
+0192   0000             ;	  this program if 'NOCOM' is set to TRUE.  J.SEYMOUR
+0193   0000             ;
+0194   0000             ;NOTE: If you add improvements or otherwise update
+0195   0000             ;this program, please modem a copy of the new file
+0196   0000             ;to "TECHNICAL CBBS" in Dearborn, Michigan - phone
+0197   0000             ;313-846-6127 (110, 300, 450 or 600 baud).  Use the
+0198   0000             ;filename XMODEM.NEW.	(KBP)
+0199   0000             ;
+0200   0000             FALSE	.EQU	0
+0201   0000             TRUE	.EQU	~FALSE
+0202   0000             ;
+0203   0000             ;-----------------------------------------------------
+0204   0000             ;	 --- Conditional Assembly Options ---	      ;
+0205   0000             ;------------------------------------------------------
+0206   0000             ;
+0207   0000             STDCPM	.EQU	TRUE	;TRUE, IS STANDARD CP/M
+0208   0000             ALTCPM	.EQU	FALSE	;TRUE, IS TRS-80 OR H8 W/O 0-ORG
+0209   0000             ;
+0210   0000             PMMI	.EQU	FALSE	;TRUE, IS PMMI
+0211   0000             DCH	.EQU	FALSE	;TRUE, IS D.C. HAYES
+0212   0000             H8	.EQU	FALSE	;TRUE, IS H8/H89 W/INS8250 MODEM CHIP
+0213   0000             
+0214   0000             #IFDEF XM5
+0215   0000             NCB85	.EQU	TRUE	;TRUE, IS NCB85
+0216   0000~            #ELSE
+0217   0000~            NCB85	.EQU	FALSE	;TRUE, IS NCB85
+0218   0000             #ENDIF
+0219   0000~            #IFDEF XM5V2
+0220   0000~            NCB85V2	.EQU	TRUE	;TRUE, IS NCB85v2
+0221   0000             #ELSE
+0222   0000             NCB85V2	.EQU	FALSE	;TRUE, IS NCB85
+0223   0000             #ENDIF
+0224   0000~            #IFDEF XM5V3
+0225   0000~            NCB85V3	.EQU	TRUE	;TRUE, IS NCB85v3
+0226   0000             #ELSE
+0227   0000             NCB85V3	.EQU	FALSE	;TRUE, IS NCB85
+0228   0000             #ENDIF
+0229   0000             
+0230   0000             EXTMOD	.EQU	FALSE	;TRUE, IS NONE OF THE ABOVE!
+0231   0000             ;
+0232   0000             NOCOMS	.EQU	FALSE	;TRUE, NO .COM FILES SENT
+0233   0000             NOLBS	.EQU	FALSE	;TRUE, NO .??# FILES SENT
+0234   0000             NOCOMR	.EQU	FALSE	;TRUE, CHANGE.COM TO.OBJ ON RECEIVE
+0235   0000             ;
+0236   0000             FASTCLK .EQU	TRUE	;PUT TRUE HERE FOR 4 MHZ CLOCK
+0237   0000             ;
+0238   0000             FRNTPNL	.EQU	FALSE	;TO DISPLAY STATUS ON FRONT PANEL
+0239   0000             PANEL	.EQU	0FFH	;DEFAULT ADDRESS OF FRONT PANEL
+0240   0000             ;
+0241   0000             SETAREA	.EQU	FALSE	;TRUE, IF USING DESIGNATED AREA TO RECEIVE 
+0242   0000             RECU	.EQU	0	;USER AREA TO REC IN (NOT GREATER THAN 9)
+0243   0000             DEFDRV	.EQU	'B'	;DRIVE TO REC TO
+0244   0000             ;
+0245   0000             ;	FILE TRANSFER LOGGING OPTIONS	(J. Riley)
+0246   0000             LOGCAL	.EQU	FALSE 	;IF USING LOGGING OF XMODEM TRANSFERS
+0247   0000             LASTUSR	.EQU	15	;USER AREA OF 'LASTCALR' FILE (IF 'LOGCAL' ONLY)
+0248   0000             ;
+0249   0000             LSPEED	.EQU	FALSE 	;REPORT DIFFERENCES IN BAUD RATES IN PRINTOUT
+0250   0000             MSPEED	.EQU	3EH	;LOCATION OF CURRENT BAUD RATE FACTOR(set by BYE)
+0251   0000             ;
+0252   0000             VOUT	.EQU	00000H	;ADR OF VIDEO DRIVER IF OPTIONAL SECTOR
+0253   0000             			;COUNT TO CONSOLE, ELSE LEAVE AS 0000H
+0254   0000             ;
+0255   0000             ;
+0256   0000             ;------------------------------------------------------
+0257   0000             ;	     --- Modem Port Equates --- 	      ;
+0258   0000             ;------------------------------------------------------
+0259   0000             ;
+0260   0000~            	.IF	PMMI
+0261   0000~            MODCTLP .EQU	0C0H	;PMMI VALUES(base port addr)
+0262   0000~            MODSNDB .EQU	1	;BIT TO TEST FOR SEND
+0263   0000~            MODSNDR .EQU	1	;VALUE WHEN READY
+0264   0000~            MODRCVB .EQU	2	;BIT TO TEST FOR RECEIVE
+0265   0000~            MODRCVR .EQU	2	;VALUE WHEN READY
+0266   0000~            MODDCDB	.EQU	4	;CARRIER DETECT BIT
+0267   0000~            MODDCDA	.EQU	0	;VALUE WHEN ACTIVE
+0268   0000~            MODPARE	.EQU	08H	;VALUE FOR PARITY ERROR
+0269   0000~            MODOVRE	.EQU	10H	;VALUE FOR OVERRUN ERROR
+0270   0000~            MODFRME	.EQU	20H	;VALUE FOR FRAMING ERROR
+0271   0000~            MODDATP .EQU	MODCTLP+1;DATA PORT, RECEIVE
+0272   0000~            MODDATO	.EQU	MODCTLP+1;DATA PORT, SEND
+0273   0000~            BAUDRP	.EQU	MODCTLP+2;BAUD RATE OUTPUT/MODEM STATUS
+0274   0000~            B600	.EQU	1AH	;FACTOR FOR B600 BAUD
+0275   0000~            MODCTL2 .EQU	MODCTLP+3;SECOND CTL PORT
+0276   0000             	.ENDIF
+0277   0000             ;
+0278   0000~            	.IF	H8
+0279   0000~            MODCTLP	.EQU	0DDH	;H8/H89 VALUES (LSR-LINE STATUS REG.)
+0280   0000~            MODSNDB	.EQU	20H	;TEST FOR SEND (LSR-THRE)
+0281   0000~            MODSNDR	.EQU	20H	;VALUE WHEN READY
+0282   0000~            MODRCVB	.EQU	01H	;TEST FOR RECIEVE (LSR-DR)
+0283   0000~            MODRCVR	.EQU	01H	;VALUE WHEN READY
+0284   0000~            MODDCDB	.EQU	20H	;CARRIER DETECT BIT (MSR-CTS)
+0285   0000~            MODDCDA	.EQU	20H	;VALUE WHEN ACTIVE
+0286   0000~            MODPARE	.EQU	04H	;VALUE FOR PARITY ERROR (LSR-PE)
+0287   0000~            MODOVRE	.EQU	02H	;VALUE FOR OVERRUN ERROR (LSR-OR)
+0288   0000~            MODFRME	.EQU	08H	;VALUE FOR FRAMING ERROE (LSR-FE)
+0289   0000~            MODDATP	.EQU	0D8H	;DATA PORT, RECIEVE
+0290   0000~            MODDATO	.EQU	0D8H	;DATA PORT, SEND
+0291   0000~            BAUDRP	.EQU	0DDH	;BAUD RATE PORT (DALB IN LCR MUST=1)
+0292   0000~            MODCTL2	.EQU	0DEH	;MODEM STATUS REGISTER (MSR)
+0293   0000~            MODCTL1	.EQU	0DBH	;LINE CONTROL REGISTER (LCR)
+0294   0000             	.ENDIF
+0295   0000             ;
+0296   0000~            	.IF	DCH
+0297   0000~            MODCTLP .EQU	82H	;D. C. HAYES VALUES
+0298   0000~            MODSNDB .EQU	2	;BIT TO TEST FOR SEND
+0299   0000~            MODSNDR .EQU	2	;VALUE WHEN READY
+0300   0000~            MODRCVB .EQU	1	;BIT TO TEST FOR RECEIVE
+0301   0000~            MODRCVR .EQU	1	;VALUE WHEN READY
+0302   0000~            MODDCDB	.EQU	40H	;CARRIER DETECT BIT
+0303   0000~            MODDCDA	.EQU	40H	;VALUE WHEN ACTIVE
+0304   0000~            MODPARE	.EQU	04H	;VALUE FOR PARITY ERROR
+0305   0000~            MODOVRE	.EQU	10H	;VALUE FOR OVERRUN ERROR
+0306   0000~            MODFRME	.EQU	08H	;VALUE FOR FRAMING ERROR
+0307   0000~            MODDATP .EQU	80H	;DATA PORT IN PORT
+0308   0000~            MODDATO	.EQU	80H	;DATA OUT PORT
+0309   0000~            MODCTL2 .EQU	81H	;SECOND CTL PORT
+0310   0000             	.ENDIF
+0311   0000             ;
+0312   0000             ;If you are using an external modem (not S-100 plug-in)
+0313   0000             ;change these equates for your modem port requirements
+0314   0000             ;
+0315   0000~            	.IF	EXTMOD
+0316   0000~            MODCTLP .EQU	06DH	;PUT YOUR MODEM STATUS PORT HERE
+0317   0000~            MODSNDB .EQU	20H	;YOUR BIT TO TEST FOR SEND
+0318   0000~            MODSNDR .EQU	20H	;YOUR VALUE WHEN READY
+0319   0000~            MODRCVB .EQU	01H	;YOUR BIT TO TEST FOR RECEIVE
+0320   0000~            MODRCVR .EQU	01H	;YOUR VALUE WHEN READY
+0321   0000~            MODDCDB	.EQU	02H	;CARRIER DETECT BIT
+0322   0000~            MODDCDA	.EQU	02H	;VALUE WHEN ACTIVE
+0323   0000~            MODDATP .EQU	068H	;YOUR MODEM DATA IN PORT
+0324   0000~            MODDATO	.EQU	068H	;YOUR MODEM DATA OUT PORT
+0325   0000~            MODCTL2	.EQU	0C1H	;SECOND CONTROL/STATUS PORT.
+0326   0000             	.ENDIF		;END OF EXTERNAL MODEM .EQUATES
+0327   0000             
+0328   0000             ; NCB85
+0329   0000             	.IF	NCB85
+0330   0000             MODCTLP .EQU	09H	;PUT YOUR MODEM STATUS PORT HERE
+0331   0000             MODSNDB .EQU	01H	;YOUR BIT TO TEST FOR SEND
+0332   0000             MODSNDR .EQU	01H	;YOUR VALUE WHEN READY
+0333   0000             MODRCVB .EQU	02H	;YOUR BIT TO TEST FOR RECEIVE
+0334   0000             MODRCVR .EQU	02H	;YOUR VALUE WHEN READY
+0335   0000             MODDATP .EQU	08H	;YOUR MODEM DATA IN PORT
+0336   0000             MODDATO	.EQU	08H	;YOUR MODEM DATA OUT PORT
+0337   0000             	.ENDIF		;END OF NCB .EQUATES
+0338   0000~            	.IF	NCB85V2
+0339   0000~            MODCTLP .EQU	2DH	;PUT YOUR MODEM STATUS PORT HERE
+0340   0000~            MODSNDB .EQU	20H	;YOUR BIT TO TEST FOR SEND
+0341   0000~            MODSNDR .EQU	20H	;YOUR VALUE WHEN READY
+0342   0000~            MODRCVB .EQU	01H	;YOUR BIT TO TEST FOR RECEIVE
+0343   0000~            MODRCVR .EQU	01H	;YOUR VALUE WHEN READY
+0344   0000~            MODDATP .EQU	28H	;YOUR MODEM DATA IN PORT
+0345   0000~            MODDATO	.EQU	28H	;YOUR MODEM DATA OUT PORT
+0346   0000             	.ENDIF		;END OF NCB .EQUATES
+0347   0000~            	.IF	NCB85V3
+0348   0000~            MODCTLP .EQU	6FH	;PUT YOUR MODEM STATUS PORT HERE
+0349   0000~            MODSNDB .EQU	20H	;YOUR BIT TO TEST FOR SEND
+0350   0000~            MODSNDR .EQU	20H	;YOUR VALUE WHEN READY
+0351   0000~            MODRCVB .EQU	40H	;YOUR BIT TO TEST FOR RECEIVE
+0352   0000~            MODRCVR .EQU	40H	;YOUR VALUE WHEN READY
+0353   0000~            MODDATP .EQU	67H	;YOUR MODEM DATA IN PORT
+0354   0000~            MODDATO	.EQU	67H	;YOUR MODEM DATA OUT PORT
+0355   0000             	.ENDIF		;END OF NCB .EQUATES
+0356   0000             
+0357   0000             ;
+0358   0000             ;		--- End of Options ---
+0359   0000             ;------------------------------------------------------
+0360   0000             ;
+0361   0000             ERRLIM	.EQU	10	;MAX ALLOWABLE ERRORS (10 STANDARD)
+0362   0000             ;
+0363   0000             ;Define ASCII characters used
+0364   0000             ;
+0365   0000             SOH	.EQU	1	;START OF HEADER
+0366   0000             EOT	.EQU	4	;END OF TRANSMISSION
+0367   0000             ACK	.EQU	6	;ACKNOWLEDGE
+0368   0000             NAK	.EQU	15H	;NEG ACKNOWLEDGE
+0369   0000             CRC	.EQU	'C'	;CRC REQUEST CHARACTER
+0370   0000             CAN	.EQU	18H	;CONTROL-X FOR CANCEL
+0371   0000             LF	.EQU	10	;LINEFEED
+0372   0000             CR	.EQU	13	;CARRIAGE RETURN
+0373   0000             ; 
+0374   0000             	.IF	STDCPM
+0375   0000             BASE	.EQU	0	;CP/M BASE ADDRESS
+0376   0000             	.ENDIF
+0377   0000             ;
+0378   0000~            	.IF	ALTCPM
+0379   0000~            BASE	.EQU	4200H	;ALTERNATE CP/M BASE ADDRESS
+0380   0000             	.ENDIF
+0381   0000             ;
+0382   0100             	.ORG	BASE+100H
+0383   0100             ;
+0384   0100             ;
+0385   0100             ;Init private stack
+0386   0100             BEGIN
+0387   0100             	.IF	NCB85 | NCB85V2 | NCB85V3
+0388   0100 F3          	DI
+0389   0101             	.ENDIF
+0390   0101 21 00 00    	LXI	H,0	;HL=0
+0391   0104 39          	DAD	SP	;HL=STACK FROM CP/M
+0392   0105 22 AC 09    	SHLD	STACK	;..SAVE IT
+0393   0108 31 AC 09    	LXI	SP,STACK ;SP=MY STACK
+0394   010B             ;
+0395   010B~            	.IF	SETAREA
+0396   010B~            	mvi	e,0ffh		;get the current user area	 a 01/06/82
+0397   010B~            	mvi	c,USER						;a 01/06/82
+0398   010B~            	call	BDOS						;a 01/06/82
+0399   010B~            	sta	olduser		;save user number here		 a 01/06/82
+0400   010B~            	mvi	c,CURDRV	;get the current drive		 a 01/06/82
+0401   010B~            	call	BDOS						;a 01/06/82
+0402   010B~            	sta	olddrv		;save drive here		 a 01/06/82
+0403   010B             	.ENDIF
+0404   010B             ;
+0405   010B CD E7 08    	CALL	ILPRT	;PRINT:
+0406   010E 0D 0A       	.DB	CR,LF
+0407   0110             	.IF	NCB85
+0408   0110 58 4D 4F 44 	.DB	"XMODEM ver 5.0V"
+0408   0114 45 4D 20 76 
+0408   0118 65 72 20 35 
+0408   011C 2E 30 56 
+0409   011F             	.ENDIF
+0410   011F~            	.IF	NCB85V2
+0411   011F~            	.DB	"XMODEM ver 5.0V for NCB85V2"
+0412   011F             	.ENDIF
+0413   011F~            	.IF	NCB85V3
+0414   011F~            	.DB	"XMODEM ver 5.0V for NCB85V3"
+0415   011F             	.ENDIF
+0416   011F 20 5B 43 52 	.DB	" [CRC capable]",CR,LF,0
+0416   0123 43 20 63 61 
+0416   0127 70 61 62 6C 
+0416   012B 65 5D 0D 0A 
+0416   012F 00 
+0417   0130             ;
+0418   0130             ;GET OPTION
+0419   0130             ;
+0420   0130 3A 5E 00    	LDA	FCB+2	;SECONDARY OPTION?
+0421   0133 FE 43       	CPI	'C'	;CRC CHECKING REQUESTED?
+0422   0135 C2 44 01    	JNZ	CHKOPTN	;NO, GO CHECK PRIMARY
+0423   0138 3A 5D 00    	LDA	FCB+1	;GET PRIMARY OPTION
+0424   013B FE 52       	CPI	'R'	;CRC VALID ONLY FOR RECEIVE
+0425   013D C2 5A 01    	JNZ	OPTNERR	;PRT MSG, ABORT
+0426   0140 AF          	XRA	A	;ZERO ACCUM
+0427   0141 32 6A 09    	STA	CRCFLG	;TURN ON CRC FLAG
+0428   0144             ;
+0429   0144 3A 5D 00    CHKOPTN	LDA	FCB+1	;GET OPTION (S or R)
+0430   0147 F5          	PUSH	PSW	;SAVE OPTION
+0431   0148             ;
+0432   0148             ;Move the filename from FCB2 to FCB1
+0433   0148             ;
+0434   0148 CD B0 08    	CALL	MOVEFCB
+0435   014B             ;
+0436   014B             ;Gobble up garbage chars from the line
+0437   014B             ;prior to receive or send
+0438   014B             ;
+0439   014B DB 08       	IN	MODDATP
+0440   014D DB 08       	IN	MODDATP
+0441   014F             ;
+0442   014F             ;Jump to appropriate function
+0443   014F             ;
+0444   014F F1          	POP	PSW	;GET OPTION
+0445   0150~            	.IF	LOGCAL
+0446   0150~            	PUSH	PSW	;BUT SAVE IT
+0447   0150             	.ENDIF
+0448   0150             ;
+0449   0150 FE 53       	CPI	'S'	;SEND..
+0450   0152 CA AD 01    	JZ	SENDFIL ;..A FILE?
+0451   0155             ;
+0452   0155 FE 52       	CPI	'R'	;RECEIVE..
+0453   0157 CA EF 01    	JZ	RCVFIL	;..A FILE?
+0454   015A             ;
+0455   015A             ;Invalid option
+0456   015A             ;
+0457   015A CD F9 08    OPTNERR	CALL	ERXIT	;EXIT W/ERROR
+0458   015D 2B 2B 49 4E 	.DB	"++INVALID OPTION ON XMODEM "
+0458   0161 56 41 4C 49 
+0458   0165 44 20 4F 50 
+0458   0169 54 49 4F 4E 
+0458   016D 20 4F 4E 20 
+0458   0171 58 4D 4F 44 
+0458   0175 45 4D 20 
+0459   0178 43 4F 4D 4D 	.DB	"COMMAND++",CR,LF
+0459   017C 41 4E 44 2B 
+0459   0180 2B 0D 0A 
+0460   0183 4D 75 73 74 	.DB	"Must be S for SEND; R or RC "
+0460   0187 20 62 65 20 
+0460   018B 53 20 66 6F 
+0460   018F 72 20 53 45 
+0460   0193 4E 44 3B 20 
+0460   0197 52 20 6F 72 
+0460   019B 20 52 43 20 
+0461   019F 66 6F 72 20 	.DB	"for RECEIVE",CR,LF,'$'
+0461   01A3 52 45 43 45 
+0461   01A7 49 56 45 0D 
+0461   01AB 0A 24 
+0462   01AD             
+0463   01AD~            	.IF	LOGCAL
+0464   01AD~            	MACLIB SEQIO22
+0465   01AD~            
+0466   01AD~            BSIZE	.EQU	80H
+0467   01AD~            FILERR	.SET	EXIT
+0468   01AD~            BUFFERS	.SET	DBUF
+0469   01AD~            
+0470   01AD~            ;		THE FOLLOWING ALLOCATIONS ARE USED BY THE 'FILE' MACROS
+0471   01AD~            DEFAULT$USER:
+0472   01AD~            	.DB	LASTUSR
+0473   01AD~            CUR$USER:
+0474   01AD~            	.DB	0FFH
+0475   01AD~            DEFAULT$DISK:
+0476   01AD~            	.DB	DEFDRV-'A'
+0477   01AD~            CUR$DISK:
+0478   01AD~            	.DB	0FFH
+0479   01AD~            PGSIZE:	.DW	0
+0480   01AD~            
+0481   01AD~            LOGCALL	FILE	INFILE,CALLER,,LASTCALR,,BSIZE,,PUBLIC,TRUE
+0482   01AD~            	MVI	A,RECU
+0483   01AD~            	STA	DEFAULT$USER
+0484   01AD~            	FILE	APPEND,LOG,,LOG,SYS,BSIZE,,PUBLIC,TRUE
+0485   01AD~            
+0486   01AD~            	POP	PSW	; GET OPTION
+0487   01AD~            	PUT	LOG	; PUT IT OUT TO LOG
+0488   01AD~            
+0489   01AD~            	LDA	MSPEED	; GET SPEED FACTOR
+0490   01AD~            	CMA
+0491   01AD~            	ADI	7EH	; MAGIC NUMBER FOR PMMI MODEM SO WE CAN
+0492   01AD~            	PUT	LOG	; PUT OUT A SINGLE LETTER CODE
+0493   01AD~            	LDA	PGSIZE	; NOW THE PROGRAM SIZE(IN MINUTES TRANSFER TIME)
+0494   01AD~            	CALL	PNDEC
+0495   01AD~            	MVI	A,' '	; BLANK
+0496   01AD~            	PUT	LOG
+0497   01AD~            
+0498   01AD~            ;			LOG THE DRIVE AND USER AREA AS A PROMPT
+0499   01AD~            	LDA	FCB
+0500   01AD~            	ORA	A
+0501   01AD~            	JNZ	WDRV
+0502   01AD~            	MVI	C,25
+0503   01AD~            	CALL	@BDOS
+0504   01AD~            	INR	A
+0505   01AD~            WDRV:	ADI	'A'-1
+0506   01AD~            	PUT	LOG
+0507   01AD~            
+0508   01AD~            	MVI	C,32		; NOW THE USER AREA(AS DECIMAL NUMBER)
+0509   01AD~            	MVI	E,0FFH
+0510   01AD~            	CALL	@BDOS
+0511   01AD~            	CALL	PNDEC
+0512   01AD~            	MVI	A,'>'		; MAKE IT LOOK LIKE A PROMPT
+0513   01AD~            	PUT	LOG
+0514   01AD~            
+0515   01AD~            	LXI	H,FCB+1		; NOW THE NAME OF THE FILE
+0516   01AD~            	MVI	B,11
+0517   01AD~            	CALL	PUTSTR
+0518   01AD~            
+0519   01AD~            	MVI	A,' '		; BLANK
+0520   01AD~            	PUT	LOG
+0521   01AD~            
+0522   01AD~            CLOOP:	GET	CALLER		; AND THE CALLER
+0523   01AD~            	CPI	EOF
+0524   01AD~            	JZ	QUIT
+0525   01AD~            	PUT	LOG
+0526   01AD~            	JMP	CLOOP
+0527   01AD~            
+0528   01AD~            PNDEC:	CPI	10		; TWO COLUMN DECIMAL FORMAT ROUTINE
+0529   01AD~            	JC	ONE		; ONE OR TWO DIGITS TO AREA #?
+0530   01AD~            	JMP	TWO
+0531   01AD~            ONE:	PUSH	PSW
+0532   01AD~            	MVI	A,'0'
+0533   01AD~            	PUT	LOG
+0534   01AD~            	POP	PSW
+0535   01AD~            TWO:	MVI	H,0
+0536   01AD~            	MOV	L,A
+0537   01AD~            	CALL	DECOT
+0538   01AD~            	RET
+0539   01AD~            
+0540   01AD~            DECOT:	PUSH	B
+0541   01AD~            	PUSH	D
+0542   01AD~            	PUSH	H
+0543   01AD~            	LXI	B,-10
+0544   01AD~            	LXI	D,-1
+0545   01AD~            ;
+0546   01AD~            DECOT2:	DAD	B
+0547   01AD~            	INX	D
+0548   01AD~            	JC	DECOT2
+0549   01AD~            	LXI	B,10
+0550   01AD~            	DAD	B
+0551   01AD~            	XCHG
+0552   01AD~            	MOV	A,H
+0553   01AD~            	ORA	L
+0554   01AD~            	CNZ	DECOT
+0555   01AD~            	MOV	A,E
+0556   01AD~            	ADI	'0'
+0557   01AD~            	PUT	LOG
+0558   01AD~            	POP	H
+0559   01AD~            	POP	D
+0560   01AD~            	POP	B
+0561   01AD~            	RET
+0562   01AD~            
+0563   01AD~            PUTSTR:	MOV	A,M
+0564   01AD~            	PUSH	H
+0565   01AD~            	PUSH	B
+0566   01AD~            	PUT	LOG
+0567   01AD~            	POP	B
+0568   01AD~            	POP	H
+0569   01AD~            	INX	H
+0570   01AD~            	DCR	B
+0571   01AD~            	JNZ	PUTSTR
+0572   01AD~            	RET
+0573   01AD~            
+0574   01AD~            QUIT:	FINIS	LOG
+0575   01AD~            	JMP	EXIT
+0576   01AD             	.ENDIF		; LOGCAL
+0577   01AD             ;
+0578   01AD             ;* * * * * * * * * * * * * * * * * * * * *
+0579   01AD             ;*					*
+0580   01AD             ;*	SENDFIL: SENDS A CP/M FILE	*
+0581   01AD             ;*					*
+0582   01AD             ;* * * * * * * * * * * * * * * * * * * * *
+0583   01AD             ;
+0584   01AD             ;The CP/M file specified in the XMODEM command
+0585   01AD             ;is transferred over the phone to another
+0586   01AD             ;computer running MODEM with the "R" (receive)
+0587   01AD             ;option.  The data is sent one sector at a
+0588   01AD             ;time with headers and checksums, and re-
+0589   01AD             ;transmission on errors.  
+0590   01AD             ;
+0591   01AD CD 38 02    SENDFIL CALL	TRAP	;CHECK FOR NO NAME OR AMBIG. NAME
+0592   01B0 CD 62 05    	CALL	CNREC	;COMPUTE # OF RECORDS.
+0593   01B3 CD DA 05    	CALL	OPENFIL ;OPEN THE FILE
+0594   01B6 1E 50       	MVI	E,80	;WAIT 80 SEC..
+0595   01B8 CD 92 08    	CALL	WAITNAK ;..FOR INITIAL NAK
+0596   01BB             ;
+0597   01BB CD 4B 07    SENDLP	CALL	RDSECT	;READ A SECTOR
+0598   01BE DA E1 01    	JC	SENDEOF ;SEND EOF IF DONE
+0599   01C1 CD 9C 04    	CALL	INCRSNO ;BUMP SECTOR #
+0600   01C4 AF          	XRA	A	;ZERO ERROR..
+0601   01C5 32 67 09    	STA	ERRCT	;..COUNT
+0602   01C8             ;
+0603   01C8 CD EC 03    SENDRPT CALL	SENDHDR ;SEND A HEADER
+0604   01CB CD FF 03    	CALL	SENDSEC ;SEND DATA SECTOR
+0605   01CE 3A 6A 09    	LDA	CRCFLG	;GET CRC FLAG
+0606   01D1 B7          	ORA	A	;CRC IN EFFECT?
+0607   01D2 CC 15 04    	CZ	SENDCRC	;YES, SEND CRC
+0608   01D5 C4 10 04    	CNZ	SENDCKS ;NO, SEND CKSUM
+0609   01D8 CD 22 04    	CALL	GETACK	;GET THE ACK
+0610   01DB DA C8 01    	JC	SENDRPT ;REPEAT IF NO ACK
+0611   01DE C3 BB 01    	JMP	SENDLP	;LOOP UNTIL EOF
+0612   01E1             ;
+0613   01E1             ;File sent, send EOT's
+0614   01E1             ;
+0615   01E1 3E 04       SENDEOF MVI	A,EOT	;SEND..
+0616   01E3 CD 7C 08    	CALL	SEND	;..AN EOT
+0617   01E6 CD 22 04    	CALL	GETACK	;GET THE ACK
+0618   01E9 DA E1 01    	JC	SENDEOF ;LOOP IF NO ACK
+0619   01EC C3 F6 08    	JMP	EXITLG	;ALL DONE
+0620   01EF             ;
+0621   01EF             ;* * * * * * * * * * * * * * * * * * * * *
+0622   01EF             ;*					*
+0623   01EF             ;*	RCVFIL: RECEIVE A FILE		*
+0624   01EF             ;*					*
+0625   01EF             ;* * * * * * * * * * * * * * * * * * * * *
+0626   01EF             ;
+0627   01EF             ;Receives a file in block format as sent
+0628   01EF             ;by another person doing "MODEM S FN.FT".
+0629   01EF             ;Can be invoked by 'XMODEM R FN.FT' or
+0630   01EF             ;by 'XMODEM RC FN.FT' if CRC is to be used.
+0631   01EF             ;
+0632   01EF CD 38 02    RCVFIL	CALL	TRAP	;CHECK FOR NO NAME OR AMBIG. NAME
+0633   01F2             ;
+0634   01F2~            	.IF	NOCOMR
+0635   01F2~            	LXI	H,FCB+9 ;POINT TO FILETYPE
+0636   01F2~            	MVI	A,'C'	;1ST LETTER
+0637   01F2~            	CMP	M	;IS IT C ?
+0638   01F2~            	JNZ	CONTINU ;IF NOT, CONTINUE NORMALLY
+0639   01F2~            	INX	H	;GET 2ND LETTER
+0640   01F2~            	MVI	A,'O'	;2ND LETTER
+0641   01F2~            	CMP	M	;IS IT O ?
+0642   01F2~            	JNZ	CONTINU ;IF NOT, CONTINUE NORMALLY
+0643   01F2~            	INX	H	;GET 3RD LETTER
+0644   01F2~            	MVI	A,'M'	;3RD LETTER
+0645   01F2~            	CMP	M	;IS IT M ?
+0646   01F2~            	JNZ	CONTINU ;IF NOT, CONTINUE NORMALLY
+0647   01F2~            
+0648   01F2~            	CALL	ILPRT	; PRINT RENAMING MESSAGE
+0649   01F2~            	.DB	"Auto Renaming Filetype To '.OBJ' "
+0650   01F2~            	.DB	CR,LF,CR,LF,0
+0651   01F2~            ;
+0652   01F2~            	LXI	H,OBJEXT
+0653   01F2~            	LXI	D,FCB+9
+0654   01F2~            	MVI	B,3
+0655   01F2~            ALTEXT	MOV	A,M
+0656   01F2~            	STAX	D
+0657   01F2~            	INX	H
+0658   01F2~            	INX	D
+0659   01F2~            	DCR	B
+0660   01F2~            	JNZ	ALTEXT
+0661   01F2~            	JMP	CONTINU
+0662   01F2~            
+0663   01F2~            OBJEXT	.DB	"OBJ"
+0664   01F2             	.ENDIF
+0665   01F2             ;
+0666   01F2 CD E1 04    CONTINU CALL	CHEKFIL ;SEE IF FILE EXISTS
+0667   01F5 CD 17 05    	CALL	MAKEFIL ;..THEN MAKE NEW
+0668   01F8 CD E7 08    	CALL	ILPRT	;PRINT:
+0669   01FB             ;
+0670   01FB~            	.IF	SETAREA
+0671   01FB~            	.DB	"NOTE: File Will Be "
+0672   01FB~            	.DB	"Received On",CR,LF	;	     a 01/06/81
+0673   01FB~            	.DB	"Drive ",DEFDRV," User ",RECU+30H,CR,LF	; tell this .a 01/06/81
+0674   01FB             	.ENDIF
+0675   01FB             ;
+0676   01FB 46 49 4C 45 	.DB	"FILE OPEN - READY TO RECEIVE",CR,LF,0
+0676   01FF 20 4F 50 45 
+0676   0203 4E 20 2D 20 
+0676   0207 52 45 41 44 
+0676   020B 59 20 54 4F 
+0676   020F 20 52 45 43 
+0676   0213 45 49 56 45 
+0676   0217 0D 0A 00 
+0677   021A             ;
+0678   021A             RCVLP
+0679   021A CD 95 02        CALL	RCVSECT ;GET A SECTOR
+0680   021D DA 2C 02    	JC	RCVEOT	;GOT EOT
+0681   0220 CD C9 07    	CALL	WRSECT	;WRITE THE SECTOR
+0682   0223 CD 9C 04    	CALL	INCRSNO ;BUMP SECTOR #
+0683   0226 CD E6 03    	CALL	SENDACK ;ACK THE SECTOR
+0684   0229 C3 1A 02    	JMP	RCVLP	;LOOP UNTIL EOF
+0685   022C             ;
+0686   022C             ;Got EOT on sector - flush buffers, end
+0687   022C             ;
+0688   022C CD E1 07    RCVEOT	CALL	WRBLOCK ;WRITE THE LAST BLOCK
+0689   022F CD E6 03    	CALL	SENDACK ;ACK THE SECTOR
+0690   0232 CD F7 06    	CALL	CLOSFIL ;CLOSE THE FILE
+0691   0235 C3 F6 08    	JMP	EXITLG	;ALL DONE
+0692   0238             ;
+0693   0238             ;* * * * * * * * * * * * * * * * * * * * *
+0694   0238             ;*					*
+0695   0238             ;*		SUBROUTINES		*
+0696   0238             ;*					*
+0697   0238             ;* * * * * * * * * * * * * * * * * * * * *
+0698   0238             ;
+0699   0238             ;---->	TRAP: Check for no file name or ambiguous name
+0700   0238             ;
+0701   0238 21 5D 00    TRAP	LXI	H,FCB+1 ;POINT TO FILE NAME
+0702   023B 7E          	MOV	A,M	;GET FIRST CHAR OF FILE NAME
+0703   023C FE 20       	CPI	' '	;ANY THERE?
+0704   023E C2 61 02    	JNZ	ATRAP	;YES, CHECK FOR AMBIGOUS FILE NAME
+0705   0241 CD F9 08    	CALL	ERXIT	;PRINT MSG, EXIT
+0706   0244 2B 2B 4E 4F 	.DB	"++NO FILE NAME SPECIFIED++",CR,LF,'$'
+0706   0248 20 46 49 4C 
+0706   024C 45 20 4E 41 
+0706   0250 4D 45 20 53 
+0706   0254 50 45 43 49 
+0706   0258 46 49 45 44 
+0706   025C 2B 2B 0D 0A 
+0706   0260 24 
+0707   0261             ;
+0708   0261 06 0B       ATRAP	MVI	B,11	;11 CHARS TO CHECK
+0709   0263             ;
+0710   0263 7E          TRLOOP	MOV	A,M	;GET CHAR FROM FCB
+0711   0264 FE 3F       	CPI	'?'	;AMBIGUOUS?
+0712   0266 CA 6F 02    	JZ	TRERR	;YES, EXIT WITH ERROR MSG
+0713   0269 23          	INX	H	;POINT TO NEXT CHAR
+0714   026A 05          	DCR	B	;ONE LESS TO GO
+0715   026B C2 63 02    	JNZ	TRLOOP	;NOT DONE, CHECK SOME MORE
+0716   026E C9          	RET		;NO AMBIGUOUS NAME, RETURN
+0717   026F             ;
+0718   026F CD F9 08    TRERR	CALL	ERXIT	;PRINT MSG, EXIT
+0719   0272 2B 2B 43 41 	.DB	"++CAN''T USE WILD "
+0719   0276 4E 27 27 54 
+0719   027A 20 55 53 45 
+0719   027E 20 57 49 4C 
+0719   0282 44 20 
+0720   0284 43 41 52 44 	.DB	"CARD OPTIONS++",CR,LF,'$'
+0720   0288 20 4F 50 54 
+0720   028C 49 4F 4E 53 
+0720   0290 2B 2B 0D 0A 
+0720   0294 24 
+0721   0295             ;
+0722   0295             ;---->	RCVSECT: Receive a sector
+0723   0295             ;
+0724   0295             ;Returns with carry set if EOT received.
+0725   0295             ;
+0726   0295 AF          RCVSECT XRA	A	;GET 0
+0727   0296 32 67 09    	STA	ERRCT	;INIT ERROR COUNT
+0728   0299             ;
+0729   0299             RCVRPT:
+0730   0299~            	.IF	PMMI | H8 | DCH
+0731   0299~            	XRA	A	;GET 0
+0732   0299~            	STA	ERRCDE	;CLEAR RECEIVE ERROR CODE
+0733   0299             	.ENDIF
+0734   0299             ;
+0735   0299 06 0A       	MVI	B,10	;10 SEC TIMEOUT
+0736   029B CD 45 08    	CALL	RECV	;GET SOH/EOT
+0737   029E DA 6A 03    	JC	RCVSTOT ;TIMEOUT
+0738   02A1             ;
+0739   02A1~            	.IF	PMMI | H8 | DCH
+0740   02A1~            	CALL	RCVERR	;TRANS ERROR?
+0741   02A1~            	JC	RCVSERR	;CARRY SET IF ERROR
+0742   02A1             	.ENDIF
+0743   02A1             ;
+0744   02A1 FE 01       	CPI	SOH	;GET SOH?
+0745   02A3 CA 6D 03    	JZ	RCVSOH	;..YES
+0746   02A6             ;
+0747   02A6             ;Earlier versions of MODEM program send some nulls -
+0748   02A6             ;ignore them
+0749   02A6             ;
+0750   02A6 B7          	ORA	A	;00 FROM SPEED CHECK?
+0751   02A7 CA 99 02    	JZ	RCVRPT	;YES, IGNORE IT
+0752   02AA FE 04       	CPI	EOT	;END OF TRANSFER?
+0753   02AC 37          	STC		;RETURN WITH CARRY..
+0754   02AD C8          	RZ		;..SET IF EOT
+0755   02AE             ;
+0756   02AE             ;Didn't get SOH or EOT - 
+0757   02AE             ;	-or-
+0758   02AE             ;Didn't get valid header - purge the line,
+0759   02AE             ;then send NAK.
+0760   02AE             ;
+0761   02AE 06 01       RCVSERR MVI	B,1	;WAIT FOR 1 SEC..
+0762   02B0 CD 45 08    	CALL	RECV	;..WITH NO CHARS
+0763   02B3 D2 AE 02    	JNC	RCVSERR ;LOOP UNTIL SENDER DONE
+0764   02B6 3A 6A 09    	LDA	CRCFLG	;GET CRC FLAG
+0765   02B9 B7          	ORA	A	;CRC IN EFFECT?
+0766   02BA 3E 15       	MVI	A,NAK	;PUT NAK IN ACCUM
+0767   02BC C2 CA 02    	JNZ	RCVSER2	;NO, SEND THE NAK
+0768   02BF 3A 6B 09    	LDA	FIRSTIME;GET FIRST TIME SWITCH
+0769   02C2 B7          	ORA	A	;HAS FIRST SOH BEEN RECEIVED?
+0770   02C3 3E 15       	MVI	A,NAK	;PUT NAK IN ACCUM
+0771   02C5 CA CA 02    	JZ	RCVSER2	;YES, THEN SEND NAK
+0772   02C8 3E 43       	MVI	A,CRC	;TELL SENDER CRC IS IN EFFECT
+0773   02CA             ;
+0774   02CA CD 7C 08    RCVSER2	CALL	SEND	;..THE NAK or CRC request
+0775   02CD 3A 67 09    	LDA	ERRCT	;ABORT IF..
+0776   02D0 3C          	INR	A	;..WE HAVE REACHED..
+0777   02D1 32 67 09    	STA	ERRCT	;..THE ERROR..
+0778   02D4 FE 0A       	CPI	ERRLIM	;..LIMIT?
+0779   02D6 DA 99 02    	JC	RCVRPT	;..NO, TRY AGAIN
+0780   02D9             ;
+0781   02D9             ;10 errors in a row -
+0782   02D9             ;
+0783   02D9 CD F7 06    RCVSABT CALL	CLOSFIL ;KEEP WHATEVER WE GOT
+0784   02DC CD E7 08    	CALL	ILPRT
+0785   02DF 2B 2B 55 4E 	.DB	"++UNABLE TO RECEIVE BLOCK "
+0785   02E3 41 42 4C 45 
+0785   02E7 20 54 4F 20 
+0785   02EB 52 45 43 45 
+0785   02EF 49 56 45 20 
+0785   02F3 42 4C 4F 43 
+0785   02F7 4B 20 
+0786   02F9 2D 20 41 42 	.DB	"- ABORTING++",CR,LF,0
+0786   02FD 4F 52 54 49 
+0786   0301 4E 47 2B 2B 
+0786   0305 0D 0A 00 
+0787   0308 CD 3A 03    	CALL	DELFILE	;DELETE RECEIVED FILE			; v48c smh
+0788   030B CD E7 08    	CALL	ILPRT	;PRINT SECOND HALF OF MESSAGE
+0789   030E 2B 2B 49 4E 	.DB	"++INCOMPLETELY RECEIVED FILE "
+0789   0312 43 4F 4D 50 
+0789   0316 4C 45 54 45 
+0789   031A 4C 59 20 52 
+0789   031E 45 43 45 49 
+0789   0322 56 45 44 20 
+0789   0326 46 49 4C 45 
+0789   032A 20 
+0790   032B 44 45 4C 45 	.DB	"DELETED++",CR,LF,0
+0790   032F 54 45 44 2B 
+0790   0333 2B 0D 0A 00 
+0791   0337 C3 FF 08    	JMP	EXIT	;GIVE UP
+0792   033A             ;
+0793   033A             ;---->	DELFILE: Deletes the received file (used if receive aborts)
+0794   033A             ;							; v48c smh
+0795   033A 11 5C 00    DELFILE LXI	D,FCB	;POINT TO FILE			; (whole routine)
+0796   033D 0E 13       	MVI	C,ERASEF ;GET FUNCTION
+0797   033F CD 05 00    	CALL	BDOS	;DELETE IT
+0798   0342 3C          	INR	A	;DELETE OK?
+0799   0343 C0          	RNZ		;..YES, RETURN
+0800   0344 CD F9 08    	CALL	ERXIT	;..NO, ABORT
+0801   0347 2B 2B 43 41 	.DB	"++CAN''T DELETE RECEIVED "
+0801   034B 4E 27 27 54 
+0801   034F 20 44 45 4C 
+0801   0353 45 54 45 20 
+0801   0357 52 45 43 45 
+0801   035B 49 56 45 44 
+0801   035F 20 
+0802   0360 46 49 4C 45 	.DB	"FILE++",CR,LF,'$',0
+0802   0364 2B 2B 0D 0A 
+0802   0368 24 00 
+0803   036A             ;
+0804   036A             ;Timed out on receive
+0805   036A             ;
+0806   036A C3 AE 02    RCVSTOT JMP	RCVSERR ;BUMP ERR CT, ETC.
+0807   036D             ;
+0808   036D             ;---->RCVERR: Checks to see if framing error, overrun, or
+0809   036D             ;		parity error occurred.
+0810   036D             ;	1. Error code (ERRCDE) was set in recv routine
+0811   036D             ;	2. ERRCDE=0 for no errors, ERRCDE<>0 for errors
+0812   036D             ;	3. If there has been an error, this routine sets
+0813   036D             ;		the carry bit on.
+0814   036D             ;
+0815   036D~            	.IF	PMMI | H8 | DCH
+0816   036D~            RCVERR	PUSH	PSW	;SAVE CHAR TRANSMITTED
+0817   036D~            	LDA	ERRCDE	;GET RECEIVE ERR CODE
+0818   036D~            	ANA	A	;IS IT ZERO?
+0819   036D~            	JZ	RCVERR2	;YES, NO ERROR
+0820   036D~            	POP	PSW	;RESTORE CHAR TRANSMITTED
+0821   036D~            	STC		;SET CARRY ON FOR ERROR
+0822   036D~            	RET
+0823   036D~            ;
+0824   036D~            RCVERR2	POP	PSW	;RESTORE CHAR TRANSMITTED
+0825   036D~            	ORA	A	;CLEAR CARRY BIT
+0826   036D~            	RET
+0827   036D             	.ENDIF
+0828   036D             ;
+0829   036D             ;Got SOH - get block #, block # complemented
+0830   036D             ;
+0831   036D AF          RCVSOH	XRA	A	;ZERO ACCUM
+0832   036E 32 6B 09    	STA	FIRSTIME;INDICATE FIRST SOH RECV'D
+0833   0371 06 01       	MVI	B,1	;TIMEOUT = 1 SEC
+0834   0373 CD 45 08    	CALL	RECV	;GET SECTOR
+0835   0376 DA 6A 03    	JC	RCVSTOT ;GOT TIMEOUT
+0836   0379             ;
+0837   0379~            	.IF	PMMI | H8 | DCH
+0838   0379~            	CALL	RCVERR	;TRANS ERROR?
+0839   0379~            	JC	RCVSERR	;CARRY SET IF ERROR
+0840   0379             	.ENDIF
+0841   0379             ;
+0842   0379 57          	MOV	D,A	;D=BLK #
+0843   037A 06 01       	MVI	B,1	;TIMEOUT = 1 SEC
+0844   037C CD 45 08    	CALL	RECV	;GET CMA'D SECT #
+0845   037F DA 6A 03    	JC	RCVSTOT ;TIMEOUT
+0846   0382             ;
+0847   0382~            	.IF	PMMI | H8 | DCH
+0848   0382~            	CALL	RCVERR	;TRANS ERROR?
+0849   0382~            	JC	RCVSERR	;CARRY SET IF ERROR
+0850   0382             	.ENDIF
+0851   0382             ;
+0852   0382 2F          	CMA		;CALC COMPLEMENT
+0853   0383 BA          	CMP	D	;GOOD SECTOR #?
+0854   0384 CA 8A 03    	JZ	RCVDATA ;YES, GET DATA
+0855   0387             ;
+0856   0387             ;Got bad sector #
+0857   0387             ;
+0858   0387 C3 AE 02    	JMP	RCVSERR ;BUMP ERROR CT.
+0859   038A             ;
+0860   038A 7A          RCVDATA MOV	A,D	;GET SECTOR #
+0861   038B 32 63 09    	STA	RCVSNO	;SAVE IT
+0862   038E 0E 00       	MVI	C,0	;INIT CKSUM
+0863   0390 CD 11 09    	CALL	CLRCRC	;CLEAR CRC COUNTER
+0864   0393 21 80 00    	LXI	H,BASE+80H ;POINT TO BUFFER
+0865   0396             ;
+0866   0396 06 01       RCVCHR	MVI	B,1	;1 SEC TIMEOUT
+0867   0398 CD 45 08    	CALL	RECV	;GET CHAR
+0868   039B DA 6A 03    	JC	RCVSTOT ;TIMEOUT
+0869   039E             ;
+0870   039E~            	.IF	PMMI | H8 | DCH
+0871   039E~            	CALL	RCVERR	;TRANS ERROR?
+0872   039E~            	JC	RCVSERR	;CARRY SET IF ERROR
+0873   039E             	.ENDIF
+0874   039E             ;
+0875   039E 77          	MOV	M,A	;STORE CHAR
+0876   039F 2C          	INR	L	;DONE?
+0877   03A0 C2 96 03    	JNZ	RCVCHR	;NO, LOOP
+0878   03A3 3A 6A 09    	LDA 	CRCFLG	;GET CRC FLAG
+0879   03A6 B7          	ORA	A	;CRC IN EFFECT?
+0880   03A7 CA C8 03    	JZ	RCVCRC	;YES, TO RECEIVE CRC
+0881   03AA             ;
+0882   03AA             ;Verify checksum
+0883   03AA             ;
+0884   03AA 51          	MOV	D,C	;SAVE CHECKSUM
+0885   03AB 06 01       	MVI	B,1	;TIMEOUT LEN.
+0886   03AD CD 45 08    	CALL	RECV	;GET CHECKSUM
+0887   03B0 DA 6A 03    	JC	RCVSTOT ;TIMEOUT
+0888   03B3             ;
+0889   03B3~            	.IF	PMMI | H8 | DCH
+0890   03B3~            	CALL	RCVERR	;TRANS ERROR?
+0891   03B3~            	JC	RCVSERR	;CARRY SET IF ERROR
+0892   03B3             	.ENDIF
+0893   03B3             ;
+0894   03B3 BA          	CMP	D	;CHECKSUM OK?
+0895   03B4 C2 AE 02    	JNZ	RCVSERR ;NO, ERROR
+0896   03B7             ;
+0897   03B7             ;Got a sector, it's a duplicate if = previous,
+0898   03B7             ;	or OK if = 1 + previous sector
+0899   03B7             ;
+0900   03B7 3A 63 09    CHKSNUM	LDA	RCVSNO	;GET RECEIVED
+0901   03BA 47          	MOV	B,A	;SAVE IT
+0902   03BB 3A 64 09    	LDA	SECTNO	;GET PREV
+0903   03BE B8          	CMP	B	;PREV REPEATED?
+0904   03BF CA E0 03    	JZ	RECVACK ;ACK TO CATCH UP
+0905   03C2 3C          	INR	A	;CALC NEXT SECTOR #
+0906   03C3 B8          	CMP	B	;MATCH?
+0907   03C4 C2 61 04    	JNZ	ABORT	;NO MATCH - STOP SENDER, EXIT
+0908   03C7 C9          	RET		;CARRY OFF - NO ERRORS
+0909   03C8             ;
+0910   03C8             ;---->	RCVCRC:	Receive the cyclic redundancy check
+0911   03C8             ;		characters (2 bytes), and see if the crc
+0912   03C8             ;		received matches the one calculated.
+0913   03C8             ;		If they match, get next sector, else
+0914   03C8             ;		send a NAK requesting the sector be
+0915   03C8             ;		resent.
+0916   03C8             ;
+0917   03C8 1E 02       RCVCRC	MVI	E,2	;NUMBER OF BYTES TO RECEIVE
+0918   03CA             ;
+0919   03CA 06 01       RCVCRC2	MVI	B,1	;1 SEC TIMEOUT
+0920   03CC CD 45 08    	CALL	RECV	;GET CRC BYTE
+0921   03CF DA 6A 03    	JC	RCVSTOT	;TIMEOUT
+0922   03D2             ;
+0923   03D2~            	.IF	PMMI | H8 | DCH
+0924   03D2~            	CALL	RCVERR	;TRANSMISSION ERROR?
+0925   03D2~            	JC	RCVSERR	;YES, IF CARRY IS ON
+0926   03D2             	.ENDIF
+0927   03D2             ;
+0928   03D2 1D          	DCR	E	;DECREMENT NUM OF BYTES
+0929   03D3 C2 CA 03    	JNZ	RCVCRC2	;GET BOTH BYTES
+0930   03D6 CD 53 09    	CALL	CHKCRC	;CHECK RCVD CRC AGAINST CALC'D CRC
+0931   03D9 B7          	ORA	A	;IS CRC OKAY?
+0932   03DA CA B7 03    	JZ	CHKSNUM	;YES, GO CHECK SECTOR NUMBERS
+0933   03DD C3 AE 02    	JMP	RCVSERR	;GO CHECK ERROR LIMIT AND SEND NAK
+0934   03E0             ;
+0935   03E0             ;Previous sector repeated, due to the last ACK
+0936   03E0             ;being garbaged.  ACK it so sender will catch up 
+0937   03E0             ;
+0938   03E0 CD E6 03    RECVACK CALL	SENDACK ;SEND THE ACK,
+0939   03E3 C3 95 02    	JMP	RCVSECT ;GET NEXT BLOCK
+0940   03E6             ;
+0941   03E6             ;Send an ACK for the sector
+0942   03E6             ;
+0943   03E6 3E 06       SENDACK MVI	A,ACK	;GET ACK
+0944   03E8 CD 7C 08    	CALL	SEND	;..AND SEND IT
+0945   03EB C9          	RET
+0946   03EC             ;
+0947   03EC             ;---->	SENDHDR: Send the sector header
+0948   03EC             ;
+0949   03EC             ;SEND: (SOH) (block #) (complemented block #)
+0950   03EC             ;
+0951   03EC 3E 01       SENDHDR MVI	A,SOH	;SEND..
+0952   03EE CD 7C 08    	CALL	SEND	;..SOH,
+0953   03F1 3A 64 09    	LDA	SECTNO	;THEN SEND..
+0954   03F4 CD 7C 08    	CALL	SEND	;..SECTOR #
+0955   03F7 3A 64 09    	LDA	SECTNO	;THEN SECTOR #
+0956   03FA 2F          	CMA		;..COMPLEMENTED..
+0957   03FB CD 7C 08    	CALL	SEND	;..SECTOR #
+0958   03FE C9          	RET		;FROM SENDHDR
+0959   03FF             ;
+0960   03FF             ;---->	SENDSEC: Send the data sector
+0961   03FF             ;
+0962   03FF 0E 00       SENDSEC MVI	C,0	;INIT CKSUM
+0963   0401 CD 11 09    	CALL	CLRCRC	;CLEAR THE CRC COUNTER
+0964   0404 21 80 00    	LXI	H,BASE+80H ;POINT TO BUFFER
+0965   0407             ;
+0966   0407 7E          SENDC	MOV	A,M	;GET A CHAR
+0967   0408 CD 7C 08    	CALL	SEND	;SEND IT
+0968   040B 2C          	INR	L	;POINT TO NEXT CHAR
+0969   040C C2 07 04    	JNZ	SENDC	;LOOP IF <100H
+0970   040F C9          	RET		;FROM SENDSEC
+0971   0410             ;
+0972   0410             ;---->	SENDCKS: Send the checksum
+0973   0410             ;
+0974   0410 79          SENDCKS MOV	A,C	;SEND THE..
+0975   0411 CD 7C 08    	CALL	SEND	;..CHECKSUM
+0976   0414 C9          	RET		;FROM SENDCKS
+0977   0415             ;
+0978   0415             ;---->	SENDCRC: Send the two Cyclic Redundancy
+0979   0415             ;		 Check characters.  Call FINCRC
+0980   0415             ;		 to calc the CRC which will be in
+0981   0415             ;		 d,e regs upon return.
+0982   0415             ;
+0983   0415 CD 42 09    SENDCRC	CALL	FINCRC	;CALC THE CRC FOR THIS SECTOR
+0984   0418 7A          	MOV	A,D	;PUT FIRST CRC BYTE IN ACCUM
+0985   0419 CD 7C 08    	CALL	SEND	;SEND IT
+0986   041C 7B          	MOV	A,E	;PUT SECOND CRC BYTE IN ACCUM
+0987   041D CD 7C 08    	CALL	SEND	;SEND IT
+0988   0420 AF          	XRA	A	;SET ZERO RETURN CODE
+0989   0421 C9          	RET
+0990   0422             ;
+0991   0422             ;---->	GETACK: Get the ACK on the sector
+0992   0422             ;
+0993   0422             ;Returns with carry clear if ACK received.
+0994   0422             ;If an ACK is not received, the error count
+0995   0422             ;is incremented, and if less than "ERRLIM",
+0996   0422             ;carry is set and control returns.  If the
+0997   0422             ;error count is at "ERRLIM", the program
+0998   0422             ;aborts.
+0999   0422             ;
+1000   0422 06 0A       GETACK	MVI	B,10	;WAIT 10 SECONDS MAX
+1001   0424 CD 41 08    	CALL	RECVDG	;RECV W/GARBAGE COLLECT
+1002   0427 DA 5E 04    	JC	GETATOT ;TIMED OUT
+1003   042A FE 06       	CPI	ACK	;OK? (CARRY OFF IF =)
+1004   042C C8          	RZ		;YES, RET FROM GETACK
+1005   042D             ;
+1006   042D             ;Timeout or error on ACK - bump error count
+1007   042D             ;
+1008   042D 3A 67 09    ACKERR	LDA	ERRCT	;GET COUNT
+1009   0430 3C          	INR	A	;BUMP IT
+1010   0431 32 67 09    	STA	ERRCT	;SAVE BACK
+1011   0434 FE 0A       	CPI	ERRLIM	;AT LIMIT?
+1012   0436 D8          	RC		;NOT AT LIMIT
+1013   0437             ;
+1014   0437             ;Reached error limit
+1015   0437             ;
+1016   0437 CD F9 08    CSABORT CALL	ERXIT
+1017   043A 2B 2B 43 41 	.DB	"++CAN''T SEND SECTOR "
+1017   043E 4E 27 27 54 
+1017   0442 20 53 45 4E 
+1017   0446 44 20 53 45 
+1017   044A 43 54 4F 52 
+1017   044E 20 
+1018   044F 2D 20 41 42 	.DB	"- ABORTING++",CR,LF,'$'
+1018   0453 4F 52 54 49 
+1018   0457 4E 47 2B 2B 
+1018   045B 0D 0A 24 
+1019   045E             ;
+1020   045E             ;Timeout getting ACK
+1021   045E             ;
+1022   045E C3 2D 04    GETATOT JMP	ACKERR	;NO MSG
+1023   0461             ; 
+1024   0461 31 AC 09    ABORT	LXI	SP,STACK
+1025   0464             ;
+1026   0464 06 01       ABORTL	MVI	B,1	;1 SEC. W/O CHARS.
+1027   0466 CD 45 08    	CALL	RECV
+1028   0469 D2 64 04    	JNC	ABORTL	;LOOP UNTIL SENDER DONE
+1029   046C 3E 18       	MVI	A,CAN	;CONTROL X
+1030   046E CD 7C 08    	CALL	SEND	;STOP SENDING END
+1031   0471             ;
+1032   0471 06 01       ABORTW	MVI	B,1	;1 SEC W/O CHARS.
+1033   0473 CD 45 08    	CALL	RECV
+1034   0476 D2 71 04    	JNC	ABORTW	;LOOP UNTIL SENDER DONE
+1035   0479 3E 20       	MVI	A,' '	;GET A SPACE...
+1036   047B CD 7C 08    	CALL	SEND	;TO CLEAR OUT CONTROL X
+1037   047E CD F9 08    	CALL	ERXIT	;EXIT WITH ABORT MSG
+1038   0481 58 4D 4F 44 	.DB	"XMODEM PROGRAM CANCELLED",CR,LF,'$'
+1038   0485 45 4D 20 50 
+1038   0489 52 4F 47 52 
+1038   048D 41 4D 20 43 
+1038   0491 41 4E 43 45 
+1038   0495 4C 4C 45 44 
+1038   0499 0D 0A 24 
+1039   049C             ;
+1040   049C             ;---->	INCRSNO: Increment sector #
+1041   049C             ;
+1042   049C 3A 64 09    INCRSNO LDA	SECTNO	;INCR..
+1043   049F 3C          	INR	A	;..SECT..
+1044   04A0 32 64 09    	STA	SECTNO	;..NUMBER
+1045   04A3 E5          	PUSH	H
+1046   04A4 21 00 00    	LXI	H,VOUT	;CK FOR OPTIONAL COUNT TO CONSOLE
+1047   04A7 7C          	MOV	A,H
+1048   04A8 B5          	ORA	L
+1049   04A9 C2 AE 04    	JNZ	CONSEC
+1050   04AC E1          	POP	H
+1051   04AD C9          	RET
+1052   04AE             ;
+1053   04AE 3E 0D       CONSEC:	MVI	A,CR
+1054   04B0 CD 00 00    	CALL	VOUT
+1055   04B3 2A 65 09    	LHLD	SECCNT	;UPDATE TOTAL SECTOR COUNT
+1056   04B6 23          	INX	H
+1057   04B7 22 65 09    	SHLD	SECCNT
+1058   04BA CD BF 04    	CALL	DECOUTX	;DISPLAY COUNT
+1059   04BD E1          	POP	H
+1060   04BE C9          	RET
+1061   04BF             ;
+1062   04BF C5          DECOUTX	PUSH	B
+1063   04C0 D5          	PUSH	D
+1064   04C1 E5          	PUSH	H
+1065   04C2 01 F6 FF    	LXI	B,-10
+1066   04C5 11 FF FF    	LXI	D,-1
+1067   04C8             ;
+1068   04C8 09          DECOU2X	DAD	B
+1069   04C9 13          	INX	D
+1070   04CA DA C8 04    	JC	DECOU2X
+1071   04CD 01 0A 00    	LXI	B,10
+1072   04D0 09          	DAD	B
+1073   04D1 EB          	XCHG
+1074   04D2 7C          	MOV	A,H
+1075   04D3 B5          	ORA	L
+1076   04D4 C4 BF 04    	CNZ	DECOUTX
+1077   04D7 7B          	MOV	A,E
+1078   04D8 C6 30       	ADI	'0'
+1079   04DA CD 00 00    	CALL	VOUT
+1080   04DD E1          	POP	H
+1081   04DE D1          	POP	D
+1082   04DF C1          	POP	B
+1083   04E0 C9          	RET
+1084   04E1             ;
+1085   04E1             ;---->	CHEKFIL: See if file exists
+1086   04E1             ;
+1087   04E1             ;If it exists, say use a different name.
+1088   04E1             ;
+1089   04E1             CHEKFIL
+1090   04E1~            	.IF	SETAREA		
+1091   04E1~            	call	RECAREA		;set the designated area up 	a 01/06/81
+1092   04E1             	.ENDIF
+1093   04E1             ;
+1094   04E1 11 5C 00    	LXI	D,FCB	;POINT TO CTL BLOCK
+1095   04E4 0E 11       	MVI	C,SRCHF ;SEE IF IT..
+1096   04E6 CD 05 00    	CALL	BDOS	;..EXISTS
+1097   04E9 3C          	INR	A	;FOUND?
+1098   04EA C8          	RZ		;..NO, RETURN
+1099   04EB CD F9 08    	CALL	ERXIT	;EXIT, PRINT ERROR MESSAGE
+1100   04EE 2B 2B 46 49 	.DB	"++FILE EXISTS - USE "
+1100   04F2 4C 45 20 45 
+1100   04F6 58 49 53 54 
+1100   04FA 53 20 2D 20 
+1100   04FE 55 53 45 20 
+1101   0502 41 20 44 49 	.DB	"A DIFFERENT NAME++"
+1101   0506 46 46 45 52 
+1101   050A 45 4E 54 20 
+1101   050E 4E 41 4D 45 
+1101   0512 2B 2B 
+1102   0514 0D 0A 24    	.DB	CR,LF,'$'
+1103   0517             ;
+1104   0517             ;---->	MAKEFIL: Makes the file to be received
+1105   0517             ;
+1106   0517 AF          MAKEFIL	XRA	A	;SET EXT & REC # TO 0
+1107   0518 32 68 00    	STA	FCBEXT
+1108   051B 32 7C 00    	STA	FCBSNO
+1109   051E 11 5C 00    	LXI	D,FCB	;POINT TO FCB
+1110   0521 0E 16       	MVI	C,MAKE	;GET BDOS FNC
+1111   0523 CD 05 00    	CALL	BDOS	;TO THE MAKE
+1112   0526 3C          	INR	A	;FF=BAD?
+1113   0527 C0          	RNZ		;OPEN OK
+1114   0528             ;Directory full - can't make file
+1115   0528 CD F9 08    	CALL	ERXIT
+1116   052B 2B 2B 45 52 	.DB	"++ERROR - CAN''T MAKE FILE++",CR,LF
+1116   052F 52 4F 52 20 
+1116   0533 2D 20 43 41 
+1116   0537 4E 27 27 54 
+1116   053B 20 4D 41 4B 
+1116   053F 45 20 46 49 
+1116   0543 4C 45 2B 2B 
+1116   0547 0D 0A 
+1117   0549 44 69 72 65 	.DB	"Directory must be full",CR,LF,'$'
+1117   054D 63 74 6F 72 
+1117   0551 79 20 6D 75 
+1117   0555 73 74 20 62 
+1117   0559 65 20 66 75 
+1117   055D 6C 6C 0D 0A 
+1117   0561 24 
+1118   0562             ;
+1119   0562             ;---->	CNREC: Computes record count, and saves it
+1120   0562             ;	       until successful file OPEN.
+1121   0562             ;
+1122   0562             ;LOOK UP THE FCB IN THE DIRECTORY
+1123   0562 3E 3F       CNREC	MVI	A,'?'	;MATCH ALL EXTENTS
+1124   0564 32 68 00    	STA	FCBEXT
+1125   0567 3E FF       	MVI	A,0FFH
+1126   0569 32 60 09    	STA	MAXEXT	;INIT MAX EXT NO.
+1127   056C 0E 11       	MVI	C,SRCHF ;GET 'SEARCH FIRST' FNC
+1128   056E 11 5C 00    	LXI	D,FCB
+1129   0571 CD 05 00    	CALL	BDOS	;READ FIRST
+1130   0574 3C          	INR	A	;WERE THERE ANY?
+1131   0575 C2 B1 05    	JNZ	SOME	;GOT SOME
+1132   0578 CD F9 08    	CALL	ERXIT
+1133   057B 2B 2B 46 49 	.DB	"++FILE NOT FOUND++$"
+1133   057F 4C 45 20 4E 
+1133   0583 4F 54 20 46 
+1133   0587 4F 55 4E 44 
+1133   058B 2B 2B 24 
+1134   058E             ;
+1135   058E             ;READ MORE DIRECTORY ENTRIES
+1136   058E 0E 12       MOREDIR	MVI	C,SRCHN ;SEARCH NEXT
+1137   0590 11 5C 00    	LXI	D,FCB
+1138   0593 CD 05 00    	CALL	BDOS	;READ DIR ENTRY
+1139   0596 3C          	INR	A	;CHECK FOR END (0FFH)
+1140   0597 C2 B1 05    	JNZ	SOME	;NOT END OF DIR...PROCESS EXTENT
+1141   059A 3A 60 09    	LDA	MAXEXT	;HIT END...GET HIGHEST EXTENT NO. SEEN
+1142   059D 6F          	MOV	L,A	;WHICH GIVES EXTENT COUNT - 1
+1143   059E 26 00       	MVI	H,0
+1144   05A0 54          	MOV	D,H
+1145   05A1 3A 61 09    	LDA	RCNT	;GET RECORD COUNT OF MAX EXTENT SEEN
+1146   05A4 5F          	MOV	E,A	;SAVE IT IN DE
+1147   05A5 29          	DAD	H
+1148   05A6 29          	DAD	H	;MULTIPLY # OF EXTENTS - 1
+1149   05A7 29          	DAD	H	; TIMES 128
+1150   05A8 29          	DAD	H
+1151   05A9 29          	DAD	H
+1152   05AA 29          	DAD	H
+1153   05AB 29          	DAD	H
+1154   05AC 19          	DAD	D	;ADD IN SIZE OF LAST EXTENT
+1155   05AD 22 61 09    	SHLD	RCNT	;SAVE TOTAL RECORD COUNT
+1156   05B0 C9          	RET		;AND EXIT
+1157   05B1             ;
+1158   05B1             ;POINT TO DIRECTORY ENTRY 
+1159   05B1 3D          SOME	DCR	A	;UNDO PREV 'INR A'
+1160   05B2 E6 03       	ANI	3	;MAKE MODULUS 4
+1161   05B4 87          	ADD	A	;MULTIPLY...
+1162   05B5 87          	ADD	A	;..BY 32 BECAUSE
+1163   05B6 87          	ADD	A	;..EACH DIRECTORY
+1164   05B7 87          	ADD	A	;..ENTRY IS 32
+1165   05B8 87          	ADD	A	;..BYTES LONG
+1166   05B9 21 80 00    	LXI	H,BASE+80H ;POINT TO BUFFER
+1167   05BC 85          	ADD	L	;POINT TO ENTRY
+1168   05BD C6 0F       	ADI	15	;OFFSET TO RECORD COUNT
+1169   05BF 6F          	MOV	L,A	;HL NOW POINTS TO REC COUNT
+1170   05C0 46          	MOV	B,M	;GET RECORD COUNT
+1171   05C1 2B          	DCX	H
+1172   05C2 2B          	DCX	H	;BACK DOWN TO EXTENT NUMBER
+1173   05C3 2B          	DCX	H
+1174   05C4 3A 60 09    	LDA	MAXEXT	;COMPARE WITH CURRENT MAX.
+1175   05C7 B7          	ORA	A	;IF NO MAX YET
+1176   05C8 FA CF 05    	JM	BIGGER	;THEN SAVE RECORD COUNT ANYWAY
+1177   05CB BE          	CMP	M
+1178   05CC D2 8E 05    	JNC	MOREDIR
+1179   05CF             ;
+1180   05CF 78          BIGGER:	MOV	A,B	;SAVE NEW RECORD COUNT
+1181   05D0 32 61 09    	STA	RCNT
+1182   05D3 7E          	MOV	A,M	;SAVE NEW MAX. EXTENT NO.
+1183   05D4 32 60 09    	STA	MAXEXT
+1184   05D7 C3 8E 05    	JMP	MOREDIR	;GO FIND MORE EXTENTS
+1185   05DA             ;
+1186   05DA             ;---->	OPENFIL: Opens the file to be sent
+1187   05DA             ;
+1188   05DA AF          OPENFIL	XRA	A	;SET EXT & REC # TO 0 FOR PROPER OPEN
+1189   05DB 32 68 00    	STA	FCBEXT
+1190   05DE 32 7C 00    	STA	FCBSNO
+1191   05E1 11 5C 00    	LXI	D,FCB	;POINT TO FILE
+1192   05E4 0E 0F       	MVI	C,OPEN	;GET FUNCTION
+1193   05E6 CD 05 00    	CALL	BDOS	;OPEN IT
+1194   05E9 3C          	INR	A	;OPEN OK?
+1195   05EA C2 01 06    	JNZ	OPENOK	;..YES
+1196   05ED CD F9 08    	CALL	ERXIT	;..NO, ABORT
+1197   05F0 2B 2B 4F 50 	.DB	"++OPEN ERROR++",CR,LF,'$'
+1197   05F4 45 4E 20 45 
+1197   05F8 52 52 4F 52 
+1197   05FC 2B 2B 0D 0A 
+1197   0600 24 
+1198   0601             ;
+1199   0601             ;Check for distribution-protected file
+1200   0601             ;
+1201   0601 3A 5D 00    OPENOK	LDA	FCB+1	;FIRST CHAR OF FILE NAME
+1202   0604 E6 80       	ANI	80H	;CHECK BIT 7
+1203   0606 C2 11 06    	JNZ	OPENOT	;If on, file can't be sent.
+1204   0609 3A 5E 00    	LDA	FCB+2	;Also check "f2" for tag.
+1205   060C E6 80       	ANI	80H	;Is it set?
+1206   060E CA 43 06    	JZ	OPENOK2	;If not, ok to send file.
+1207   0611             ;
+1208   0611 CD F9 08    OPENOT	CALL	ERXIT	;EXIT W/MESSAGE
+1209   0614 2B 2B 54 48 	.DB	"++THIS FILE IS NOT FOR "
+1209   0618 49 53 20 46 
+1209   061C 49 4C 45 20 
+1209   0620 49 53 20 4E 
+1209   0624 4F 54 20 46 
+1209   0628 4F 52 20 
+1210   062B 44 49 53 54 	.DB	"DISTRIBUTION, SORRY++"
+1210   062F 52 49 42 55 
+1210   0633 54 49 4F 4E 
+1210   0637 2C 20 53 4F 
+1210   063B 52 52 59 2B 
+1210   063F 2B 
+1211   0640 0D 0A 24    	.DB	CR,LF,'$'
+1212   0643             ;
+1213   0643             OPENOK2 .EQU	$
+1214   0643             ;
+1215   0643~            	.IF	NOLBS | NOCOMS ;CHECK FOR SEND RESTRICTIONS
+1216   0643~            	LXI	H,FCB+11
+1217   0643~            	MOV	A,M	;CHECK FOR PROTECT ATTR
+1218   0643~            	ANI	7FH	;REMOVE CP/M 2.x ATTRS
+1219   0643             	.ENDIF		;NOLBS OR NOCOMS
+1220   0643             ;
+1221   0643~            	.IF	NOLBS	;DON'T ALLOW '#' TO BE SENT.
+1222   0643~            	CPI	'#'	;CHK FOR '#' AS LAST FIRST
+1223   0643~            	JZ	OPENOT	;IF '#', CAN'T SEND, SHOW WHY
+1224   0643             	.ENDIF		;NOLBS
+1225   0643             ;
+1226   0643~            	.IF	NOCOMS	;DON'T ALLOW .COM TO BE SENT
+1227   0643~            	CPI	'M'	;IF NOT, CHK FOR '.COM'
+1228   0643~            	JNZ	OPENOK3 ;IF NOT, OK TO SEND
+1229   0643~            	DCX	H
+1230   0643~            	MOV	A,M	;CHK NEXT CHAR
+1231   0643~            	ANI	7FH	;STRIP ATTRIBUTES
+1232   0643~            	CPI	'O'	; 'O'?
+1233   0643~            	JNZ	OPENOK3 ;IF NOT, OK TO SEND
+1234   0643~            	DCX	H
+1235   0643~            	MOV	A,M	;NOW CHK FIRST CHAR
+1236   0643~            	ANI	7FH	;STRIP ATTRIBUTES
+1237   0643~            	CPI	'C'	; 'C' AS IN '.COM'?
+1238   0643~            	JNZ	OPENOK3 ;IF NOT, CONTINUE
+1239   0643~            	CALL	ERXIT	;EXIT W/MESSAGE
+1240   0643~            	.DB	"++CAN''T SEND A .COM FILE++"
+1241   0643~            	.DB	CR,LF,'$'
+1242   0643             	.ENDIF		;NOCOMS
+1243   0643             ;
+1244   0643 CD E7 08    OPENOK3 CALL	ILPRT	;PRINT:
+1245   0646 46 69 6C 65 	.DB	"File Open -  ",0			; v48b bhk
+1245   064A 20 4F 70 65 
+1245   064E 6E 20 2D 20 
+1245   0652 20 00 
+1246   0654 2A 61 09    	LHLD	RCNT	; Get record count.
+1247   0657 CD 1C 07    	CALL	DECOUT	;PRINT DECIMAL NUMBER OF SECTORS
+1248   065A CD E7 08    	CALL	ILPRT
+1249   065D 20 28 00    	.DB	" (",0
+1250   0660 CD 3E 07    	CALL	DHXOUT	;Now print size in hex.
+1251   0663 CD E7 08    	CALL	ILPRT
+1252   0666 20 48 65 78 	.DB	" Hex) Sectors",CR,LF			; v48b bhk
+1252   066A 29 20 53 65 
+1252   066E 63 74 6F 72 
+1252   0672 73 0D 0A 
+1253   0675 28 61 70 70 	.DB	"(approximately ",0			; v48b bhk
+1253   0679 72 6F 78 69 
+1253   067D 6D 61 74 65 
+1253   0681 6C 79 20 00 
+1254   0685 2A 61 09    	lhld	RCNT	; get # of sectors		; v48b bhk
+1255   0688~            	.IF	LSPEED
+1256   0688~            	LDA	MSPEED					; V50  JPR
+1257   0688~            	CPI	B600					;  "
+1258   0688~            	PUSH	PSW					;  "
+1259   0688~            	JNZ	S300					;  "
+1260   0688~            	XRA	A	; DIVIDE HL BY 2		   "
+1261   0688~            	MOV	A,H					;  "
+1262   0688~            	RAR						;  "
+1263   0688~            	MOV	H,A					;  "
+1264   0688~            	MOV	A,L					;  "
+1265   0688~            	RAR						;  "
+1266   0688~            	MOV	L,A					;  "
+1267   0688~            
+1268   0688~            S300
+1269   0688             	.ENDIF
+1270   0688 CD E0 06    	call	divhl14	; divide HL by 14 (sectors/min)	; v48b bhk
+1271   068B E5          	PUSH	H
+1272   068C~            	.IF	LOGCAL
+1273   068C~            	SHLD	PGSIZE					; V50  JPR
+1274   068C             	.ENDIF
+1275   068C 26 00       	MVI	H,0
+1276   068E CD 1C 07    	call	DECOUT	; print decimal # of minutes	; v48b bhk
+1277   0691 CD E7 08    	call	ILPRT					; v48b bhk
+1278   0694 20 6D 69 6E 	.DB	" mins, ",0
+1278   0698 73 2C 20 00 
+1279   069C             
+1280   069C E1          	POP	H
+1281   069D 7C          	MOV	A,H		;REMAINDER X 4 = SECONDS
+1282   069E 07          	RLC
+1283   069F 07          	RLC
+1284   06A0 6F          	MOV	L,A
+1285   06A1 26 00       	MVI	H,0
+1286   06A3 CD 1C 07    	CALL	DECOUT
+1287   06A6~            	.IF	LSPEED
+1288   06A6~            	POP	PSW					; V50 JPR
+1289   06A6~            	JNZ	MS300
+1290   06A6~            	CALL	ILPRT
+1291   06A6~            	.DB	" secs to send at 600 baud).",CR,LF		; v48b bhk
+1292   06A6~            	.DB	"[Control-X to cancel.]",CR,LF,0	; v48c bhk
+1293   06A6~            	RET
+1294   06A6~            MS300
+1295   06A6             	.ENDIF
+1296   06A6 CD E7 08    	CALL	ILPRT
+1297   06A9 20 73 65 63 	.DB	" secs to send at 300 baud).",CR,LF		; v48b bhk
+1297   06AD 73 20 74 6F 
+1297   06B1 20 73 65 6E 
+1297   06B5 64 20 61 74 
+1297   06B9 20 33 30 30 
+1297   06BD 20 62 61 75 
+1297   06C1 64 29 2E 0D 
+1297   06C5 0A 
+1298   06C6 5B 43 6F 6E 	.DB	"[Control-X to cancel.]",CR,LF,0	; v48c bhk
+1298   06CA 74 72 6F 6C 
+1298   06CE 2D 58 20 74 
+1298   06D2 6F 20 63 61 
+1298   06D6 6E 63 65 6C 
+1298   06DA 2E 5D 0D 0A 
+1298   06DE 00 
+1299   06DF C9          	RET
+1300   06E0             ;
+1301   06E0             ;---->  DIVHL14: Divides HL by 14, 
+1302   06E0             ;	UPON EXIT: L=QUOTIENT,H=REMAINDER
+1303   06E0             ;
+1304   06E0 C5          divhl14	push	b
+1305   06E1 06 08       	MVI	B,8	;SHIFT FACTOR TO B
+1306   06E3 0E 0E       	MVI	C,14	;DIVISOR TO C
+1307   06E5 AF          div2	xra	a	; clear carry flag and accumulator
+1308   06E6 29          	DAD	H
+1309   06E7 7C          	MOV	A,H
+1310   06E8 91          	SUB	C
+1311   06E9 FA F1 06    	JM	DIV3	;DONT BORROW ON NEG RESULTS
+1312   06EC 67          	MOV	H,A
+1313   06ED 7D          	MOV	A,L
+1314   06EE F6 01       	ORI	1	;BORROW 1
+1315   06F0 6F          	MOV	L,A
+1316   06F1 05          DIV3	dcr	b
+1317   06F2 C2 E5 06    	jnz	div2
+1318   06F5 C1          	pop	b
+1319   06F6 C9          	ret
+1320   06F7             ;
+1321   06F7             ;---->	CLOSFIL: Closes the received file
+1322   06F7             ;
+1323   06F7 11 5C 00    CLOSFIL LXI	D,FCB	;POINT TO FILE
+1324   06FA 0E 10       	MVI	C,CLOSE ;GET FUNCTION
+1325   06FC CD 05 00    	CALL	BDOS	;CLOSE IT
+1326   06FF 3C          	INR	A	;CLOSE OK?
+1327   0700 C0          	RNZ		;..YES, RETURN
+1328   0701 CD F9 08    	CALL	ERXIT	;..NO, ABORT
+1329   0704 2B 2B 43 41 	.DB	"++CAN''T CLOSE FILE++",CR,LF,'$'
+1329   0708 4E 27 27 54 
+1329   070C 20 43 4C 4F 
+1329   0710 53 45 20 46 
+1329   0714 49 4C 45 2B 
+1329   0718 2B 0D 0A 24 
+1330   071C             ;
+1331   071C             ;
+1332   071C             ;----> DECOUT: Decimal output routine
+1333   071C             ;
+1334   071C C5          DECOUT:	PUSH	B
+1335   071D D5          	PUSH	D
+1336   071E E5          	PUSH	H
+1337   071F 01 F6 FF    	LXI	B,-10
+1338   0722 11 FF FF    	LXI	D,-1
+1339   0725             ;
+1340   0725 09          DECOU2:	DAD	B
+1341   0726 13          	INX	D
+1342   0727 DA 25 07    	JC	DECOU2
+1343   072A 01 0A 00    	LXI	B,10
+1344   072D 09          	DAD	B
+1345   072E EB          	XCHG
+1346   072F 7C          	MOV	A,H
+1347   0730 B5          	ORA	L
+1348   0731 C4 1C 07    	CNZ	DECOUT
+1349   0734 7B          	MOV	A,E
+1350   0735 C6 30       	ADI	'0'
+1351   0737 CD C3 08    	CALL	CTYPE
+1352   073A E1          	POP	H
+1353   073B D1          	POP	D
+1354   073C C1          	POP	B
+1355   073D C9          	RET
+1356   073E             ;
+1357   073E             ;---->	DHXOUT: - double precision hex output routine.
+1358   073E             ;	Call with hex value in HL.
+1359   073E             ;
+1360   073E E5          DHXOUT	PUSH	H	;Save H,L
+1361   073F F5          	PUSH	PSW	;Save A
+1362   0740 7C          	MOV	A,H	;Get MS byte.
+1363   0741 CD D0 08    	CALL	HEXO	;Output hi order byte.
+1364   0744 7D          	MOV	A,L	;Get LS byte.
+1365   0745 CD D0 08    	CALL	HEXO	;Output lo order byte.
+1366   0748 F1          	POP	PSW	;Restore A
+1367   0749 E1          	POP	H	;Restore H,L
+1368   074A C9          	RET		;Return to caller.
+1369   074B             ;
+1370   074B             ;
+1371   074B             ;---->	RDSECT: Reads a sector
+1372   074B             ;
+1373   074B             ;For speed, this routine buffers up 16
+1374   074B             ;sectors at a time.
+1375   074B             ;
+1376   074B 3A 6F 09    RDSECT	LDA	SECINBF ;GET # SECT IN BUFF.
+1377   074E 3D          	DCR	A	;DECREMENT..
+1378   074F 32 6F 09    	STA	SECINBF ;..IT
+1379   0752 FA 62 07    	JM	RDBLOCK ;EXHAUSTED?  NEED MORE.
+1380   0755 2A 6D 09    	LHLD	SECPTR	;GET POINTER
+1381   0758 11 80 00    	LXI	D,BASE+80H ;TO DATA
+1382   075B CD 06 09    	CALL	MOVE128 ;MOVE TO BUFFER
+1383   075E 22 6D 09    	SHLD	SECPTR	;SAVE BUFFER POINTER
+1384   0761 C9          	RET		;FROM "READSEC"
+1385   0762             ;
+1386   0762             ;Buffer is empty - read in another block of 16
+1387   0762             ;
+1388   0762 3A 6C 09    RDBLOCK LDA	EOFLG	;GED EOF FLAG
+1389   0765 FE 01       	CPI	1	;IS IT SET?
+1390   0767 37          	STC		;TO SHOW EOF
+1391   0768 C8          	RZ		;GOT EOF
+1392   0769 0E 00       	MVI	C,0	;SECTORS IN BLOCK
+1393   076B 11 AE 09    	LXI	D,DBUF	;TO DISK BUFFER
+1394   076E             ;
+1395   076E C5          RDSECLP PUSH	B
+1396   076F D5          	PUSH	D
+1397   0770 0E 1A       	MVI	C,STDMA ;SET DMA..
+1398   0772 CD 05 00    	CALL	BDOS	;..ADDR
+1399   0775 11 5C 00    	LXI	D,FCB
+1400   0778 0E 14       	MVI	C,READ
+1401   077A CD 05 00    	CALL	BDOS
+1402   077D D1          	POP	D
+1403   077E C1          	POP	B
+1404   077F B7          	ORA	A	;READ OK?
+1405   0780 CA A0 07    	JZ	RDSECOK ;YES
+1406   0783 3D          	DCR	A	;EOF?
+1407   0784 CA AF 07    	JZ	REOF	;GOT EOF
+1408   0787             ;
+1409   0787             ;Read error
+1410   0787             ;
+1411   0787 CD F9 08    	CALL	ERXIT
+1412   078A 2B 2B 46 49 	.DB	"++FILE READ ERROR++",CR,LF,'$'
+1412   078E 4C 45 20 52 
+1412   0792 45 41 44 20 
+1412   0796 45 52 52 4F 
+1412   079A 52 2B 2B 0D 
+1412   079E 0A 24 
+1413   07A0             ;
+1414   07A0 21 80 00    RDSECOK LXI	H,80H	;ADD LENGTH OF ONE SECTOR...
+1415   07A3 19          	DAD	D	;...TO NEXT BUFF
+1416   07A4 EB          	XCHG		;BUFF TO DE
+1417   07A5 0C          	INR	C	;MORE SECTORS?
+1418   07A6 79          	MOV	A,C	;GET COUNT
+1419   07A7 FE 10       	CPI	16	;DONE?
+1420   07A9 CA B5 07    	JZ	RDBFULL ;..YES, BUFF IS FULL
+1421   07AC C3 6E 07    	JMP	RDSECLP ;READ MORE
+1422   07AF             ;
+1423   07AF 3E 01       REOF	MVI	A,1
+1424   07B1 32 6C 09    	STA	EOFLG	;SET EOF FLAG
+1425   07B4 79          	MOV	A,C
+1426   07B5             ;
+1427   07B5             ;Buffer is full, or got EOF
+1428   07B5             ;
+1429   07B5 32 6F 09    RDBFULL STA	SECINBF ;STORE SECTOR COUNT
+1430   07B8 21 AE 09    	LXI	H,DBUF	;INIT BUFFER..
+1431   07BB 22 6D 09    	SHLD	SECPTR	;..POINTER
+1432   07BE 11 80 00    	LXI	D,BASE+80H ;RESET..
+1433   07C1 0E 1A       	MVI	C,STDMA ;..DMA..
+1434   07C3 CD 05 00    	CALL	BDOS	;..ADDR
+1435   07C6 C3 4B 07    	JMP	RDSECT	;PASS SECT TO CALLER
+1436   07C9             ;
+1437   07C9             ;---->	WRSECT: Write a sector
+1438   07C9             ;
+1439   07C9             ;Writes the sector into a buffer.  When 16
+1440   07C9             ;have been written, writes the block to disk.
+1441   07C9             ;
+1442   07C9             ;Entry point "WRBLOCK" flushes the buffer at EOF.
+1443   07C9             ;
+1444   07C9 2A 6D 09    WRSECT	LHLD	SECPTR	;GET BUFF ADDR
+1445   07CC EB          	XCHG		;TO DE FOR MOVE
+1446   07CD 21 80 00    	LXI	H,BASE+80H	;FROM HERE
+1447   07D0 CD 06 09    	CALL	MOVE128 ;MOVE TO BUFFER
+1448   07D3 EB          	XCHG		;SAVE NEXT..
+1449   07D4 22 6D 09    	SHLD	SECPTR	;..BLOCK POINTER
+1450   07D7 3A 6F 09    	LDA	SECINBF ;BUMP THE..
+1451   07DA 3C          	INR	A	;..SECTOR #..
+1452   07DB 32 6F 09    	STA	SECINBF ;..IN THE BUFF
+1453   07DE FE 10       	CPI	16	;HAVE WE 16?
+1454   07E0 C0          	RNZ		;NO, RETURN
+1455   07E1             ;
+1456   07E1             ;---->	WRBLOCK: Writes a block to disk
+1457   07E1             ;
+1458   07E1 3A 6F 09    WRBLOCK LDA	SECINBF ;# SECT IN BUFFER
+1459   07E4 B7          	ORA	A	;0 MEANS END OF FILE
+1460   07E5 C8          	RZ		;NONE TO WRITE
+1461   07E6 4F          	MOV	C,A	;SAVE COUNT
+1462   07E7 11 AE 09    	LXI	D,DBUF	;POINT TO DISK BUFF
+1463   07EA             ;
+1464   07EA E5          DKWRLP	PUSH	H
+1465   07EB D5          	PUSH	D
+1466   07EC C5          	PUSH	B
+1467   07ED 0E 1A       	MVI	C,STDMA ;SET DMA
+1468   07EF CD 05 00    	CALL	BDOS	;TO BUFFER
+1469   07F2 11 5C 00    	LXI	D,FCB	;THEN WRITE
+1470   07F5 0E 15       	MVI	C,WRITE ;..THE..
+1471   07F7 CD 05 00    	CALL	BDOS	;..BLOCK
+1472   07FA C1          	POP	B
+1473   07FB D1          	POP	D
+1474   07FC E1          	POP	H
+1475   07FD B7          	ORA	A
+1476   07FE C2 1D 08    	JNZ	WRERR	;OOPS, ERROR
+1477   0801 21 80 00    	LXI	H,80H	;LENGTH OF 1 SECT
+1478   0804 19          	DAD	D	;HL= NEXT BUFF
+1479   0805 EB          	XCHG		;TO DE FOR SETDMA
+1480   0806 0D          	DCR	C	;MORE SECTORS?
+1481   0807 C2 EA 07    	JNZ	DKWRLP	;..YES, LOOP
+1482   080A AF          	XRA	A	;GET A ZERO
+1483   080B 32 6F 09    	STA	SECINBF ;RESET # OF SECTORS
+1484   080E 21 AE 09    	LXI	H,DBUF	;RESET BUFFER..
+1485   0811 22 6D 09    	SHLD	SECPTR	;..POINTER
+1486   0814             ;
+1487   0814 11 80 00    RSDMA	LXI	D,BASE+80H ;RESET..
+1488   0817 0E 1A       	MVI	C,STDMA ;..DMA..
+1489   0819 CD 05 00    	CALL	BDOS	;..ADDR
+1490   081C C9          	RET
+1491   081D             ;
+1492   081D CD 14 08    WRERR	CALL	RSDMA	;RESET DMA TO NORM.
+1493   0820 0E 18       	MVI	C,CAN	;CANCEL..
+1494   0822 CD 7C 08    	CALL	SEND	;..SENDER
+1495   0825 CD F9 08    	CALL	ERXIT	;EXIT W/MSG:
+1496   0828 2B 2B 45 52 	.DB	"++ERROR WRITING FILE++",CR,LF,'$'
+1496   082C 52 4F 52 20 
+1496   0830 57 52 49 54 
+1496   0834 49 4E 47 20 
+1496   0838 46 49 4C 45 
+1496   083C 2B 2B 0D 0A 
+1496   0840 24 
+1497   0841             ;
+1498   0841             ;---->	RECV: Receive a character
+1499   0841             ;
+1500   0841             ;Timeout time is in B, in seconds.  Entry via
+1501   0841             ;"RECVDG" deletes garbage characters on the
+1502   0841             ;line.	For example, having just sent a sector,
+1503   0841             ;calling RECVDG will delete any line-noise-induced
+1504   0841             ;characters "long" before the ACK/NAK would
+1505   0841             ;be received.
+1506   0841             ;
+1507   0841             RECVDG	.EQU	$	;RECEIVE W/GARBAGE DELETE
+1508   0841 DB 08       	IN	MODDATP ;GET A CHAR
+1509   0843 DB 08       	IN	MODDATP ;..TOTALLY PURGE UART
+1510   0845             ;
+1511   0845 D5          RECV	PUSH	D	;SAVE
+1512   0846             ;
+1513   0846             	.IF	FASTCLK ;4MHZ?
+1514   0846 78          	MOV	A,B	;GET TIME REQUEST
+1515   0847 87          	ADD	A	;DOUBLE IT
+1516   0848 47          	MOV	B,A	;NEW TIME IN B
+1517   0849             	.ENDIF
+1518   0849             ;
+1519   0849 11 50 C3    MSEC	LXI	D,50000 ;1 SEC DCR COUNT
+1520   084C             ;
+1521   084C             	.IF	~DCH
+1522   084C DB 09       MWTI	IN	MODCTLP ;CHECK STATUS
+1523   084E             	.ENDIF
+1524   084E             ;
+1525   084E~            	.IF	DCH
+1526   084E~            MWTI	IN	MODCTL2 ;CHECK STATUS
+1527   084E             	.ENDIF
+1528   084E             ;
+1529   084E~            	.IF	PMMI & FRNTPNL
+1530   084E~            	OUT	PANEL	;DISPLAY STATUS ON PANEL LIGHTS
+1531   084E             	.ENDIF
+1532   084E             ;
+1533   084E E6 02       	ANI	MODRCVB ;ISOLATE BIT
+1534   0850 FE 02       	CPI	MODRCVR ;READY?
+1535   0852 CA 64 08    	JZ	MCHAR	;GOT CHAR
+1536   0855 1D          	DCR	E	;COUNT..
+1537   0856 C2 4C 08    	JNZ	MWTI	;..DOWN..
+1538   0859 15          	DCR	D	;..FOR..
+1539   085A C2 4C 08    	JNZ	MWTI	;..TIMEOUT
+1540   085D 05          	DCR	B	;MORE SECONDS?
+1541   085E C2 49 08    	JNZ	MSEC	;YES, WAIT
+1542   0861             
+1543   0861~            	.IF	~NCB85 & ~NCB85V2 & ~NCB85V3
+1544   0861~            
+1545   0861~            ;
+1546   0861~            ;Test for the presence of carrier - if none, go to 
+1547   0861~            ;CARCK and continue testing for 15 seconds. If carrier
+1548   0861~            ;returns, continue. If is doesn't return, exit.
+1549   0861~            ;
+1550   0861~            	.IF	EXTMOD | H8 | DCH
+1551   0861~            	IN	MODCTL2	;READ MODEM STATUS
+1552   0861~            	.ENDIF
+1553   0861~            ;
+1554   0861~            	.IF	PMMI
+1555   0861~            	IN	BAUDRP	;READ MODEM STATUS
+1556   0861~            	.ENDIF
+1557   0861~            ;
+1558   0861~            	.IF	PMMI & FRNTPNL
+1559   0861~            	OUT	PANEL	;DISPLAY STATUS ON PANEL LIGHTS
+1560   0861~            	.ENDIF
+1561   0861~            ;
+1562   0861~            	ANI	MODDCDB	;CARRIER DETECT MASK
+1563   0861~            	CPI	MODDCDA	;IS IT STILL ON?
+1564   0861~            	CNZ	CARCK	;IF NOT, TEST FOR 15 SECONDS
+1565   0861~            
+1566   0861             	.ENDIF
+1567   0861             ;
+1568   0861             ;Modem timed out receiving - but carrier still on.
+1569   0861             ;
+1570   0861 D1          	POP	D	;RESTORE D,E
+1571   0862 37          	STC		;CARRY SHOWS TIMEOUT
+1572   0863 C9          	RET
+1573   0864             ;
+1574   0864             ;Got character from modem
+1575   0864             ;
+1576   0864             MCHAR:
+1577   0864             ;Check to see if there was a framing error,
+1578   0864             ;overrun, or parity error.
+1579   0864             ;
+1580   0864~            	.IF	PMMI | H8
+1581   0864~            	IN	MODCTLP	;GET MODEM STATUS
+1582   0864             	.ENDIF
+1583   0864             ;
+1584   0864~            	.IF	DCH
+1585   0864~            	IN	MODCTL2	;GET MODEM STATUS
+1586   0864             	.ENDIF
+1587   0864             ;
+1588   0864~            	.IF	PMMI | H8 | DCH
+1589   0864~            	MOV	D,A	;SAVE STATUS
+1590   0864~            	ANI	MODFRME	;FRAMING ERROR?
+1591   0864~            	CPI	MODFRME
+1592   0864~            	JNZ	MCHAR2	;NO, CHECK FOR OVERRUN
+1593   0864~            	LDA	ERRCDE	;GET RECV ERR CODE
+1594   0864~            	ORI	MODFRME	;TURN ON RECV ERR CODE
+1595   0864~            	STA	ERRCDE	;PUT IT BACK
+1596   0864~            ;
+1597   0864~            MCHAR2:	MOV	A,D	;RESTORE MODEM STATUS
+1598   0864~            	ANI	MODOVRE	;OVERRUN?
+1599   0864~            	CPI	MODOVRE
+1600   0864~            	JNZ	MCHAR3	;NO, CHECK FOR PARITY ERROR
+1601   0864~            	LDA	ERRCDE
+1602   0864~            	ORI	MODOVRE	;TURN ON RECV ERR CODE
+1603   0864~            	STA	ERRCDE
+1604   0864~            ;
+1605   0864~            MCHAR3:	MOV	A,D	;RESTORE MODEM STATUS
+1606   0864~            	ANI	MODPARE	;PARITY ERROR?
+1607   0864~            	CPI	MODPARE
+1608   0864~            	JNZ	MCHAR4	;NO, GET DATA CHAR
+1609   0864~            	LDA	ERRCDE
+1610   0864~            	ORI	MODPARE
+1611   0864~            	STA	ERRCDE
+1612   0864~            ;
+1613   0864~            MCHAR4:
+1614   0864             	.ENDIF		;PMMI OR H8 OR DCH
+1615   0864             ;
+1616   0864             ;Get data char
+1617   0864             ;
+1618   0864 DB 08       	IN	MODDATP ;READ THE CHAR
+1619   0866 D1          	POP	D	;RESTORE DE
+1620   0867             ;
+1621   0867             ;Calc checksum and CRC
+1622   0867             ;
+1623   0867 F5          	PUSH	PSW	;SAVE THE CHAR
+1624   0868 CD 1A 09    	CALL	UPDCRC	;CALC CRC
+1625   086B 81          	ADD	C	;ADD TO CHECKSUM
+1626   086C 4F          	MOV	C,A	;SAVE CHECKSUM
+1627   086D F1          	POP	PSW	;RESTORE CHAR
+1628   086E B7          	ORA	A	;CARRY OFF: NO ERROR
+1629   086F C9          	RET		;FROM "RECV"
+1630   0870             
+1631   0870~            	.IF	~NCB85 & ~NCB85V2 & ~NCB85V3
+1632   0870~            
+1633   0870~            ;
+1634   0870~            ;CARCK - common 15 second carrier test for RECV and
+1635   0870~            ;SEND. If carrier returns within 15 seconds, normal
+1636   0870~            ;program execution continues. Else, it will abort
+1637   0870~            ;to CP/M via EXIT.
+1638   0870~            ;
+1639   0870~            CARCK	MVI	E,150	;VALUE FOR 15 SECOND DELAY
+1640   0870~            ;
+1641   0870~            CARCK1	CALL	DELAY	;KILL .1 SECONDS
+1642   0870~            ;
+1643   0870~            	.IF	EXTMOD | H8 | DCH
+1644   0870~            	IN	MODCTL2	;READ MODEM STATUS
+1645   0870~            	.ENDIF
+1646   0870~            ;
+1647   0870~            	.IF	PMMI
+1648   0870~            	IN	BAUDRP	;READ MODEM STATUS
+1649   0870~            	.ENDIF
+1650   0870~            ;
+1651   0870~            	.IF	PMMI & FRNTPNL
+1652   0870~            	OUT	PANEL	;DISPLAY STATUS
+1653   0870~            	.ENDIF
+1654   0870~            ;
+1655   0870~            	ANI	MODDCDB	;CARRIER DETECT MASK
+1656   0870~            	CPI	MODDCDA	;IS IT STILL ON?
+1657   0870~            	RZ		;RETURN IF CARRIER ON
+1658   0870~            	DCR	E	;HAS 15 SECONDS EXPIRED?
+1659   0870~            	JNZ	CARCK1	;IF NOT, CONTINUE TESTING
+1660   0870~            	JMP	EXIT	;ELSE, ABORT TO CP/M.
+1661   0870~            
+1662   0870             	.ENDIF
+1663   0870             
+1664   0870             ;
+1665   0870             ;DELAY - 100 millisecond delay.
+1666   0870             ;
+1667   0870 C5          DELAY	PUSH	B	;SAVE B,C
+1668   0871             ;
+1669   0871             	.IF	FASTCLK	;IF 4MHZ CLOCK
+1670   0871 01 1B 41    	LXI	B,16667	;VALUE FOR 100MS DELAY
+1671   0874             	.ENDIF
+1672   0874             ;
+1673   0874~            	.IF	~FASTCLK
+1674   0874~            	LXI	B,8334	;VALUE FOR 100MS DELAY
+1675   0874             	.ENDIF
+1676   0874             ;
+1677   0874 0B          DELAY2	DCX	B	;UPDATE COUNT
+1678   0875 78          	MOV	A,B	;GET MS BYTE
+1679   0876 B1          	ORA	C	;COUNT = ZERO?
+1680   0877 C2 74 08    	JNZ	DELAY2	;IF NOT, CONTINUE
+1681   087A C1          	POP	B	;RESTORE B,C
+1682   087B C9          	RET		;RETURN TO CARCK1.
+1683   087C             ;
+1684   087C             ;---->	SEND: Send a character to the modem
+1685   087C             ;
+1686   087C F5          SEND	PUSH	PSW	;SAVE THE CHARACTER
+1687   087D CD 1A 09    	CALL	UPDCRC	;calc the crc
+1688   0880 81          	ADD	C	;CALC CKSUM
+1689   0881 4F          	MOV	C,A	;SAVE CKSUM
+1690   0882             ;
+1691   0882             	.IF	~DCH
+1692   0882 DB 09       SENDW	IN	MODCTLP ;GET STATUS
+1693   0884             	.ENDIF
+1694   0884             ;
+1695   0884~            	.IF	DCH
+1696   0884~            SENDW	IN	MODCTL2 ;GET STATUS
+1697   0884             	.ENDIF
+1698   0884             ;
+1699   0884~            	.IF	PMMI & FRNTPNL
+1700   0884~            	OUT	PANEL	;DISPLAY STATUS
+1701   0884             	.ENDIF
+1702   0884             ;
+1703   0884 E6 01       	ANI	MODSNDB ;ISOLATE READY BIT
+1704   0886 FE 01       	CPI	MODSNDR ;READY?
+1705   0888 CA 8E 08    	JZ	SENDR	;..YES, GO SEND
+1706   088B             
+1707   088B~            	.IF	~NCB85 & ~NCB85V2 & ~NCB85V3
+1708   088B~            
+1709   088B~            ;
+1710   088B~            ;Xmit status not ready, so test for carrier before
+1711   088B~            ;looping - if lost, go to CARCK and give it up to 15
+1712   088B~            ;seconds to return. If it doesn't return abort via
+1713   088B~            ;EXIT.
+1714   088B~            ;
+1715   088B~            	PUSH	D	;Save D,E
+1716   088B~            ;
+1717   088B~            	.IF	EXTMOD | H8 | DCH
+1718   088B~            	IN	MODCTL2	;READ MODEM STATUS
+1719   088B~            	.ENDIF
+1720   088B~            ;
+1721   088B~            	.IF	PMMI
+1722   088B~            	IN	BAUDRP	;READ MODEM STATUS
+1723   088B~            	.ENDIF
+1724   088B~            ;
+1725   088B~            	.IF	PMMI & FRNTPNL
+1726   088B~            	OUT	PANEL	;DISPLAY STATUS
+1727   088B~            	.ENDIF
+1728   088B~            ;
+1729   088B~            	ANI	MODDCDB	;CARRIER DETECT MASK
+1730   088B~            	CPI	MODDCDA	;IS IT STILL ON?
+1731   088B~            	CNZ	CARCK	;IF NOT, CONTINUE TESTING IT
+1732   088B~            	POP	D	;RESTORE D,E
+1733   088B~            
+1734   088B             	.ENDIF
+1735   088B             
+1736   088B C3 82 08    	JMP	SENDW	;ELSE, WAIT FOR XMIT READY.
+1737   088E             ;
+1738   088E             ;Xmit status ready, carrier still on - send the data.
+1739   088E             ;
+1740   088E F1          SENDR	POP	PSW	;GET CHAR
+1741   088F D3 08       	OUT	MODDATO ;OUTPUT IT
+1742   0891 C9          	RET		;FROM "SEND"
+1743   0892             ;
+1744   0892             ;---->	WAITNAK: Waits for initial NAK
+1745   0892             ;
+1746   0892             ;To ensure no data is sent until the receiving
+1747   0892             ;program is ready, this routine waits for the
+1748   0892             ;first timeout-NAK or the letter 'C' for CRC
+1749   0892             ;from the receiver.  If CRC is in effect, then
+1750   0892             ;Cyclic Redundancy Checks are used instead of
+1751   0892             ;checksums.
+1752   0892             ;(E) contains the # of seconds to wait.
+1753   0892             ;
+1754   0892             ; If the first character received is a CAN (control-X)
+1755   0892             ; then the send will be aborted as though it had timed out.
+1756   0892             ; 04/01/82 BHK 
+1757   0892             ;
+1758   0892 06 01       WAITNAK MVI	B,1	;TIMEOUT DELAY
+1759   0894 CD 45 08    	CALL	RECV	;DID WE GET..
+1760   0897 FE 15       	CPI	NAK	;..A NAK?
+1761   0899 C8          	RZ		;YES, SEND BLOCK
+1762   089A FE 43       	CPI	CRC	;CRC INDICATED?
+1763   089C CA AB 08    	JZ	WAITCRC	;YES, GO PUT CRC IN EFFECT
+1764   089F FE 18       	CPI	CAN	;WAS IT A CANCEL (CONTROL-X)?		; v48c bhk
+1765   08A1 CA 61 04    	JZ	ABORT	;YES, ABORT				; v48c bhk
+1766   08A4 1D          	DCR	E	;80 TRIES?
+1767   08A5 CA 61 04    	JZ	ABORT	;YES, ABORT
+1768   08A8 C3 92 08    	JMP	WAITNAK ;NO, LOOP
+1769   08AB             ;
+1770   08AB             ;----> WAITCRC: Turn on CRC Flag
+1771   08AB             ;
+1772   08AB AF          WAITCRC	XRA	A	;ZERO ACCUM
+1773   08AC 32 6A 09    	STA	CRCFLG	;TURN ON CRC OPT
+1774   08AF C9          	RET
+1775   08B0             ;
+1776   08B0             ;---->	MOVEFCB: Moves FCB(2) to FCB
+1777   08B0             ;
+1778   08B0             ;In order to make the XMODEM command 'natural',
+1779   08B0             ;i.e. XMODEM SEND FILENAME (MODEM S FN.FT) rather
+1780   08B0             ;than XMODEM FILENAME SEND (MODEM FN.FT S), this
+1781   08B0             ;routine moves the filename from the second FCB
+1782   08B0             ;to the first.
+1783   08B0             ;
+1784   08B0 21 6C 00    MOVEFCB LXI	H,FCB+16 ;FROM
+1785   08B3 11 5C 00    	LXI	D,FCB	;TO
+1786   08B6 06 10       	MVI	B,16	;LEN
+1787   08B8 CD 08 09    	CALL	MOVE	;DO THE MOVE
+1788   08BB AF          	XRA	A	;GET 0
+1789   08BC 32 7C 00    	STA	FCBSNO	;ZERO SECTOR #
+1790   08BF 32 68 00    	STA	FCBEXT	;..AND EXTENT
+1791   08C2 C9          	RET
+1792   08C3             ;
+1793   08C3 C5          CTYPE	PUSH	B	;SAVE..
+1794   08C4 D5          	PUSH	D	;..ALL..
+1795   08C5 E5          	PUSH	H	;..REGS
+1796   08C6 5F          	MOV	E,A	;CHAR TO E
+1797   08C7 0E 02       	MVI	C,WRCON ;GET BDOS FNC
+1798   08C9 CD 05 00    	CALL	BDOS	;PRIN THE CHR
+1799   08CC E1          	POP	H	;RESTORE..
+1800   08CD D1          	POP	D	;..ALL..
+1801   08CE C1          	POP	B	;..REGS
+1802   08CF C9          	RET		;FROM "CTYPE"
+1803   08D0             ;
+1804   08D0 F5          HEXO	PUSH	PSW	;SAVE FOR RIGHT DIGIT
+1805   08D1 1F          	RAR		;RIGHT..
+1806   08D2 1F          	RAR		;..JUSTIFY..
+1807   08D3 1F          	RAR		;..LEFT..
+1808   08D4 1F          	RAR		;..DIGIT..
+1809   08D5 CD D9 08    	CALL	NIBBL	;PRINT LEFT DIGIT
+1810   08D8 F1          	POP	PSW	;RESTORE RIGHT
+1811   08D9             ;
+1812   08D9 E6 0F       NIBBL	ANI	0FH	;ISOLATE DIGIT
+1813   08DB FE 0A       	CPI	10	;IS IT <10?
+1814   08DD DA E2 08    	JC	ISNUM	;YES, NOT ALPHA
+1815   08E0 C6 07       	ADI	7	;ADD ALPHA BIAS
+1816   08E2             ;
+1817   08E2 C6 30       ISNUM	ADI	'0'	;MAKE PRINTABLE
+1818   08E4 C3 C3 08    	JMP	CTYPE	;..THEN TYPE IT
+1819   08E7             ;
+1820   08E7             ;---->	ILPRT: Inline print of message
+1821   08E7             ;
+1822   08E7             ;The call to ILPRT is followed by a message,
+1823   08E7             ;binary 0 as the end.
+1824   08E7             ;
+1825   08E7 E3          ILPRT	XTHL		;SAVE HL, GET HL=MSG
+1826   08E8             ;
+1827   08E8 7E          ILPLP	MOV	A,M	;GET CHAR
+1828   08E9 B7          	ORA	A	;END OF MSG?
+1829   08EA CA F4 08    	JZ	ILPRET	;..YES, RETURN
+1830   08ED CD C3 08    	CALL	CTYPE	;TYPE THE MSG
+1831   08F0 23          	INX	H	;TO NEXT CHAR
+1832   08F1 C3 E8 08    	JMP	ILPLP	;LOOP
+1833   08F4             ;
+1834   08F4 E3          ILPRET	XTHL		;RESTORE HL
+1835   08F5 C9          	RET		;PAST MSG
+1836   08F6             ;
+1837   08F6             EXITLG				; SPECIAL LOG CALLER EXIT
+1838   08F6~            	.IF	LOGCAL
+1839   08F6~            	JMP	LOGCALL
+1840   08F6             	.ENDIF
+1841   08F6 C3 FF 08    	JMP	EXIT
+1842   08F9             ;
+1843   08F9             ;---->	ERXIT: Exit printing message following call
+1844   08F9             ;
+1845   08F9 D1          ERXIT	POP	D	;GET MESSAGE
+1846   08FA 0E 09       	MVI	C,PRINT ;GET BDOS FNC
+1847   08FC CD 05 00    	CALL	BDOS	;PRINT MESSAGE
+1848   08FF             ;
+1849   08FF 2A AC 09    EXIT	LHLD	STACK	;GET ORIGINAL STACK
+1850   0902 F9          	SPHL		;RESTORE IT
+1851   0903             ;
+1852   0903~            	.IF	SETAREA
+1853   0903~            	call	RESTU		; restore old area user & drive ..a 01/06/81
+1854   0903             	.ENDIF
+1855   0903             ;
+1856   0903             	.IF	NCB85 | NCB85V2
+1857   0903 C3 00 00    	JMP	0
+1858   0906~            	.ELSE
+1859   0906~            	RET		;--EXIT-- TO CP/M
+1860   0906             	.ENDIF
+1861   0906             ;
+1862   0906~            	.IF	SETAREA
+1863   0906~            ;
+1864   0906~            ;------> RESTORE THE OLD USER AREA AND DRIVE FROM A RECEIVED FILE
+1865   0906~            ;
+1866   0906~            RESTU	lda	olddrv		;RESTORE THE OLD DRIVE		;a 01/06/81
+1867   0906~            	mov	e,a						;a 01/06/81
+1868   0906~            	call	RECDRX						;a 01/06/81
+1869   0906~            	lda	olduser		;RESTORE THE OLD USER NUMBER	;a 01/06/81
+1870   0906~            	mov	e,a						;a 01/06/81
+1871   0906~            	jmp	RECARE						;a 01/06/81
+1872   0906~            ;
+1873   0906~            ;--------> SET USER AREA TO RECEIVE FILE
+1874   0906~            RECAREA	call	RECDRV		;ok set the drive to its place	;a 01/06/81
+1875   0906~            	mvi	e,RECU		;ok now set the user area	;a 01/06/81
+1876   0906~            RECARE	mvi	c,USER		;tell bdos what we want to do	;a 01/06/81
+1877   0906~            	call	BDOS		;do it				;a 01/06/81
+1878   0906~            	RET
+1879   0906~            ;
+1880   0906~            RECDRV	mvi	e,DEFDRV-41h	;make drive cp/m number		;a 01/06/81
+1881   0906~            RECDRX	mvi	c,SELDRV	;tell bdos			;a 01/06/81
+1882   0906~            	call	BDOS		;do it				;a 01/06/81
+1883   0906~            	ret			;back				;a 01/06/81
+1884   0906             	.ENDIF
+1885   0906             ;
+1886   0906             ;Move 128 characters
+1887   0906             ;
+1888   0906 06 80       MOVE128 MVI	B,128	;SET MOVE COUNT
+1889   0908             ;
+1890   0908             ;Move from (HL) to (DE) length in (B)
+1891   0908             ;
+1892   0908 7E          MOVE	MOV	A,M	;GET A CHAR
+1893   0909 12          	STAX	D	;STORE IT
+1894   090A 23          	INX	H	;TO NEXT "FROM"
+1895   090B 13          	INX	D	;TO NEXT "TO"
+1896   090C 05          	DCR	B	;MORE?
+1897   090D C2 08 09    	JNZ	MOVE	;..YES, LOOP
+1898   0910 C9          	RET		;..NO, RETURN
+1899   0911             ;
+1900   0911             ;************************************************************************
+1901   0911             ;* CRCSUBS (Cyclic Redundancy Code Subroutines) version 1.20		*
+1902   0911             ;* 8080 Mnemonics							*
+1903   0911             ;*									*
+1904   0911             ;*     	These subroutines will compute and check a true 16-bit		*
+1905   0911             ;*	Cyclic Redundancy Code for a message of arbitrary length.	*
+1906   0911             ;*									*
+1907   0911             ;*	The  use  of this scheme will guarantee detection of all	*
+1908   0911             ;*	single and double bit errors, all  errors  with  an  odd	*
+1909   0911             ;*	number  of  error bits, all burst errors of length 16 or	*
+1910   0911             ;*	less, 99.9969% of all 17-bit error bursts, and  99.9984%	*
+1911   0911             ;*	of  all  possible  longer  error bursts.  (Ref: Computer	*
+1912   0911             ;*	Networks, Andrew S.  Tanenbaum, Prentiss-Hall, 1981)		*
+1913   0911             ;*									*
+1914   0911             ;*									*
+1915   0911             ;*	There are four entry points, which are used as follows:		*
+1916   0911             ;*									*
+1917   0911             ;*	CLRCRC - A call to this entry resets the CRC accumulator.	*
+1918   0911             ;*		 It must be called at the start of each message.	*
+1919   0911             ;*									*
+1920   0911             ;*		 Entry Parameters: None.				*
+1921   0911             ;*									*
+1922   0911             ;*		 Exit Conditions:  CRC accumulator cleared.		*
+1923   0911             ;*				   All registers preserved.		*
+1924   0911             ;*									*
+1925   0911             ;*									*
+1926   0911             ;*	UPDCRC - A call to this entry updates the CRC accumulator.	*
+1927   0911             ;*		 It must be called once for each byte in the		*
+1928   0911             ;*		 message for which the CRC is being calculated.		*
+1929   0911             ;*									*
+1930   0911             ;*		 Entry Parameters: (A) = a byte to be included		*
+1931   0911             ;*					 in the CRC calculation.	*
+1932   0911             ;*									*
+1933   0911             ;*		 Exit Conditions:  CRC accumulator updated.		*
+1934   0911             ;*				   All registers preserved.		*
+1935   0911             ;*									*
+1936   0911             ;*									*
+1937   0911             ;*	FINCRC - A call to this entry finishes the CRC calculation	*
+1938   0911             ;*		 for a message which is to be TRANSMITTED. It must	*
+1939   0911             ;*		 be called after the last byte of the message has	*
+1940   0911             ;*		 been passed thru UPDCRC. It returns the calculated	*
+1941   0911             ;*		 CRC bytes, which must be transmitted as the final	*
+1942   0911             ;*		 two bytes of the message (first D, then E).		*
+1943   0911             ;*									*
+1944   0911             ;*		 Entry Parameters: None.				*
+1945   0911             ;*									*
+1946   0911             ;*		 Exit Conditions:  (DE) = calculated CRC bytes.		*
+1947   0911             ;*				   All other registers preserved.	*
+1948   0911             ;*									*
+1949   0911             ;*									*
+1950   0911             ;*	CHKCRC - A call to this routine checks the CRC bytes of		*
+1951   0911             ;*		 a RECEIVED message and returns a code to indicate	*
+1952   0911             ;*		 whether the message was received correctly. It must	*
+1953   0911             ;*		 be called after the message AND the two CRC bytes	*
+1954   0911             ;*		 have been received AND passed thru UPDCRC.		*
+1955   0911             ;*									*
+1956   0911             ;*		 Entry Parameters: None.				*
+1957   0911             ;*									*
+1958   0911             ;*		 Exit Conditions:  (A) =  0 if message ok.		*
+1959   0911             ;*				   (A) = -1 if message garbled.		*
+1960   0911             ;*				   All other registers preserved.	*
+1961   0911             ;*									*
+1962   0911             ;************************************************************************
+1963   0911             ;*									*
+1964   0911             ;*	Designed & coded by Paul Hansknecht, June 13, 1981		*
+1965   0911             ;*									*
+1966   0911             ;*									*
+1967   0911             ;*	Copyright (c) 1981, Carpenter Associates			*
+1968   0911             ;*			    Box 451					*
+1969   0911             ;*			    Bloomfield Hills, MI 48013			*
+1970   0911             ;*			    313/855-3074				*
+1971   0911             ;*									*
+1972   0911             ;*	This program may be freely reproduced for non-profit use.	*
+1973   0911             ;*									*
+1974   0911             ;************************************************************************
+1975   0911             ;
+1976   0911             ;	ENTRY	CLRCRC,UPDCRC,FINCRC,CHKCRC
+1977   0911             ;
+1978   0911             CLRCRC:	.EQU	$		; Reset CRC Accumulator for a new message.
+1979   0911 E5          	PUSH	H
+1980   0912 21 00 00    	LXI	H,0
+1981   0915 22 5E 09    	SHLD	CRCVAL
+1982   0918 E1          	POP	H
+1983   0919 C9          	RET
+1984   091A             ;
+1985   091A             UPDCRC:	.EQU	$		; Update CRC Accumulator using byte in (A).
+1986   091A F5          	PUSH	PSW
+1987   091B C5          	PUSH	B
+1988   091C E5          	PUSH	H
+1989   091D 06 08       	MVI	B,8
+1990   091F 4F          	MOV	C,A
+1991   0920 2A 5E 09    	LHLD	CRCVAL
+1992   0923 79          UPDLOOP:MOV	A,C
+1993   0924 07          	RLC
+1994   0925 4F          	MOV	C,A
+1995   0926 7D          	MOV	A,L
+1996   0927 17          	RAL
+1997   0928 6F          	MOV	L,A
+1998   0929 7C          	MOV	A,H
+1999   092A 17          	RAL
+2000   092B 67          	MOV	H,A
+2001   092C D2 37 09    	JNC	SKIPIT
+2002   092F 7C          	MOV	A,H		; The generator is X^16 + X^12 + X^5 + 1
+2003   0930 EE 10       	XRI	10H		; as recommended by CCITT.
+2004   0932 67          	MOV	H,A		; An alternate generator which is often
+2005   0933 7D          	MOV	A,L		; used in synchronous transmission protocols
+2006   0934 EE 21       	XRI	21H		; is X^16 + X^15 + X^2 + 1. This may be
+2007   0936 6F          	MOV	L,A		; used by substituting XOR 80H for XOR 10H
+2008   0937 05          SKIPIT:	DCR	B		; and XOR 05H for XOR 21H in the adjacent code.
+2009   0938 C2 23 09    	JNZ	UPDLOOP
+2010   093B 22 5E 09    	SHLD	CRCVAL
+2011   093E E1          	POP	H
+2012   093F C1          	POP	B
+2013   0940 F1          	POP	PSW
+2014   0941 C9          	RET
+2015   0942             ;
+2016   0942             FINCRC:	.EQU	$		; Finish CRC calc for outbound message.
+2017   0942 F5          	PUSH	PSW
+2018   0943 AF          	XRA	A
+2019   0944 CD 1A 09    	CALL	UPDCRC
+2020   0947 CD 1A 09    	CALL	UPDCRC
+2021   094A E5          	PUSH	H
+2022   094B 2A 5E 09    	LHLD	CRCVAL
+2023   094E 54          	MOV	D,H
+2024   094F 5D          	MOV	E,L
+2025   0950 E1          	POP	H
+2026   0951 F1          	POP	PSW
+2027   0952 C9          	RET
+2028   0953             ;
+2029   0953             CHKCRC:	.EQU	$		; Check CRC bytes of received message.
+2030   0953 E5          	PUSH	H
+2031   0954 2A 5E 09    	LHLD	CRCVAL
+2032   0957 7C          	MOV	A,H
+2033   0958 B5          	ORA	L
+2034   0959 E1          	POP	H
+2035   095A C8          	RZ
+2036   095B 3E FF       	MVI	A,0FFh
+2037   095D C9          	RET
+2038   095E             ;
+2039   095E             ;
+2040   095E 00 00       CRCVAL	.DW	0
+2041   0960             ;
+2042   0960             ;
+2043   0960             ;
+2044   0960             ;Temporary storage area
+2045   0960             ;
+2046   0960 00          MAXEXT	.DB	0	;HIGHEST EXTENT NO. SEEN IN FILE SIZE CALC.
+2047   0961 00 00       RCNT	.DW	0	;RECORD COUNT
+2048   0963 00          RCVSNO	.DB	0	;SECT # RECEIVED
+2049   0964 00          SECTNO	.DB	0	;CURRENT SECTOR NUMBER 
+2050   0965 00 00       SECCNT	.DW	0	;TOTAL SECTOR COUNT
+2051   0967 00          ERRCT	.DB	0	;ERROR COUNT
+2052   0968 00          olduser .DB	0	;save the org user number
+2053   0969 00          olddrv	.DB	0	;save the org drive number
+2054   096A             ;
+2055   096A~            	.IF	PMMI | H8 | DCH
+2056   096A~            ERRCDE	.DB	0	;RECEIVE ERROR CODE
+2057   096A             	.ENDIF
+2058   096A             ;
+2059   096A 43          CRCFLG	.DB	'C'	;SET TO NULL IF CRC USED
+2060   096B 01          FIRSTIME .DB	1	;TURNED OFF AFTER FIRST SOH RECEIVED
+2061   096C             ;
+2062   096C             ;Following 3 used by disk buffering routines
+2063   096C 00          EOFLG	.DB	0	;EOF FLAG (1=TRUE)
+2064   096D AE 09       SECPTR	.DW	DBUF
+2065   096F 00          SECINBF .DB	0	;# OF SECTORS IN BUFFER
+2066   0970             	.DS	60	;STACK AREA
+2067   09AC             STACK	.DS	2	;STACK POINTER
+2068   09AE             ;
+2069   09AE             ;16 sector disk buffer
+2070   09AE             ;
+2071   09AE             DBUF	.EQU	$	;16 SECTOR DISK BUFFER
+2072   09AE             ;
+2073   09AE             ;BDOS equates
+2074   09AE             ;
+2075   09AE             RDCON	.EQU	1
+2076   09AE             WRCON	.EQU	2
+2077   09AE             PRINT	.EQU	9
+2078   09AE             CONST	.EQU	11	;CONSOLE STAT
+2079   09AE             SELDRV	.EQU	14	;SELECT DRIVE
+2080   09AE             OPEN	.EQU	15	;0FFH = NOT FOUND
+2081   09AE             CLOSE	.EQU	16	;	"       "
+2082   09AE             SRCHF	.EQU	17	;	"       "
+2083   09AE             SRCHN	.EQU	18	;	"       "
+2084   09AE             ERASEF	.EQU	19	;NO RET CODE
+2085   09AE             READ	.EQU	20	;0=OK, 1=EOF
+2086   09AE             WRITE	.EQU	21	;0=OK, 1=ERR, 2=?, 0FFH=NO DIR SPC
+2087   09AE             MAKE	.EQU	22	;0FFH=BAD
+2088   09AE             REN	.EQU	23	;0FFH=BAD
+2089   09AE             CURDRV	.EQU	25	;GET CURRENT DRIVE
+2090   09AE             STDMA	.EQU	26	;SET DMA
+2091   09AE             USER	.EQU	32	;SET USER AREA TO RECEIVE FILE
+2092   09AE             BDOS	.EQU	BASE+5
+2093   09AE             FCB	.EQU	BASE+5CH ;SYSTEM FCB
+2094   09AE             FCBEXT	.EQU	FCB+12	;FILE EXTENT
+2095   09AE             FCBSNO	.EQU	FCB+32	;SECTOR #
+2096   09AE             FCB2	.EQU	BASE+6CH ;SECOND FCB
+2097   09AE             ;
+2098   09AE             	.END
+
+
+
+Label        Value      Label        Value      Label        Value
+------------------      ------------------      ------------------
+ALTCPM        0000      ACK           0006      ATRAP         0261      
+ACKERR        042D      ABORT         0461      ABORTL        0464      
+ABORTW        0471      BASE          0000      BEGIN         0100      
+BIGGER        05CF      BDOS          0005      CRC           0043      
+CAN           0018      CR            000D      CHKOPTN       0144      
+CONTINU       01F2      CHKSNUM       03B7      CSABORT       0437      
+CONSEC        04AE      CHEKFIL       04E1      CNREC         0562      
+CLOSFIL       06F7      CTYPE         08C3      CLRCRC        0911      
+CHKCRC        0953      CRCVAL        095E      CRCFLG        096A      
+CONST         000B      CLOSE         0010      CURDRV        0019      
+DCH           0000      DEFDRV        0042      DELFILE       033A      
+DECOUTX       04BF      DECOU2X       04C8      DIV3          06F1      
+DECOUT        071C      DECOU2        0725      DHXOUT        073E      
+DKWRLP        07EA      DELAY         0870      DELAY2        0874      
+DBUF          09AE      EXTMOD        0000      ERRLIM        000A      
+EOT           0004      EXITLG        08F6      ERXIT         08F9      
+EXIT          08FF      ERRCT         0967      EOFLG         096C      
+ERASEF        0013      FALSE         0000      FASTCLK       FFFFFFFF      
+FRNTPNL       0000      FINCRC        0942      FIRSTIME      096B      
+FCB           005C      FCBEXT        0068      FCBSNO        007C      
+FCB2          006C      GETACK        0422      GETATOT       045E      
+H8            0000      HEXO          08D0      INCRSNO       049C      
+ISNUM         08E2      ILPRT         08E7      ILPLP         08E8      
+ILPRET        08F4      LOGCAL        0000      LASTUSR       000F      
+LSPEED        0000      LF            000A      MSPEED        003E      
+MODCTLP       0009      MODSNDB       0001      MODSNDR       0001      
+MODRCVB       0002      MODRCVR       0002      MODDATP       0008      
+MODDATO       0008      MAKEFIL       0517      MOREDIR       058E      
+MSEC          0849      MWTI          084C      MCHAR         0864      
+MOVEFCB       08B0      MOVE128       0906      MOVE          0908      
+MAXEXT        0960      MAKE          0016      NCB85         FFFFFFFF      
+NCB85V2       0000      NCB85V3       0000      NOCOMS        0000      
+NOLBS         0000      NOCOMR        0000      NAK           0015      
+NIBBL         08D9      OPTNERR       015A      OPENFIL       05DA      
+OPENOK        0601      OPENOT        0611      OPENOK2       0643      
+OPENOK3       0643      OPEN          000F      PMMI          0000      
+PANEL         00FF      PRINT         0009      RECU          0000      
+RCVFIL        01EF      RCVLP         021A      RCVEOT        022C      
+RCVSECT       0295      RCVRPT        0299      RCVSERR       02AE      
+RCVSER2       02CA      RCVSABT       02D9      RCVSTOT       036A      
+RCVSOH        036D      RCVDATA       038A      RCVCHR        0396      
+RCVCRC        03C8      RCVCRC2       03CA      RECVACK       03E0      
+RDSECT        074B      RDBLOCK       0762      RDSECLP       076E      
+RDSECOK       07A0      REOF          07AF      RDBFULL       07B5      
+RSDMA         0814      RECVDG        0841      RECV          0845      
+RCNT          0961      RCVSNO        0963      RDCON         0001      
+READ          0014      REN           0017      STDCPM        FFFFFFFF      
+SETAREA       0000      SOH           0001      SENDFIL       01AD      
+SENDLP        01BB      SENDRPT       01C8      SENDEOF       01E1      
+SENDACK       03E6      SENDHDR       03EC      SENDSEC       03FF      
+SENDC         0407      SENDCKS       0410      SENDCRC       0415      
+SOME          05B1      SEND          087C      SENDW         0882      
+SENDR         088E      SKIPIT        0937      SECTNO        0964      
+SECCNT        0965      SECPTR        096D      SECINBF       096F      
+STACK         09AC      SELDRV        000E      SRCHF         0011      
+SRCHN         0012      STDMA         001A      TRUE          FFFFFFFF      
+TRAP          0238      TRLOOP        0263      TRERR         026F      
+UPDCRC        091A      UPDLOOP       0923      USER          0020      
+VOUT          0000      WRSECT        07C9      WRBLOCK       07E1      
+WRERR         081D      WAITNAK       0892      WAITCRC       08AB      
+WRCON         0002      WRITE         0015      divhl14       06E0      
+div2          06E5      olduser       0968      olddrv        0969      
+
+
+ADDR  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+-----------------------------------------------------
+0100  F3 21 00 00 39 22 AC 09 31 AC 09 CD E7 08 0D 0A
+0110  58 4D 4F 44 45 4D 20 76 65 72 20 35 2E 30 56 20
+0120  5B 43 52 43 20 63 61 70 61 62 6C 65 5D 0D 0A 00
+0130  3A 5E 00 FE 43 C2 44 01 3A 5D 00 FE 52 C2 5A 01
+0140  AF 32 6A 09 3A 5D 00 F5 CD B0 08 DB 08 DB 08 F1
+0150  FE 53 CA AD 01 FE 52 CA EF 01 CD F9 08 2B 2B 49
+0160  4E 56 41 4C 49 44 20 4F 50 54 49 4F 4E 20 4F 4E
+0170  20 58 4D 4F 44 45 4D 20 43 4F 4D 4D 41 4E 44 2B
+0180  2B 0D 0A 4D 75 73 74 20 62 65 20 53 20 66 6F 72
+0190  20 53 45 4E 44 3B 20 52 20 6F 72 20 52 43 20 66
+01A0  6F 72 20 52 45 43 45 49 56 45 0D 0A 24 CD 38 02
+01B0  CD 62 05 CD DA 05 1E 50 CD 92 08 CD 4B 07 DA E1
+01C0  01 CD 9C 04 AF 32 67 09 CD EC 03 CD FF 03 3A 6A
+01D0  09 B7 CC 15 04 C4 10 04 CD 22 04 DA C8 01 C3 BB
+01E0  01 3E 04 CD 7C 08 CD 22 04 DA E1 01 C3 F6 08 CD
+01F0  38 02 CD E1 04 CD 17 05 CD E7 08 46 49 4C 45 20
+0200  4F 50 45 4E 20 2D 20 52 45 41 44 59 20 54 4F 20
+0210  52 45 43 45 49 56 45 0D 0A 00 CD 95 02 DA 2C 02
+0220  CD C9 07 CD 9C 04 CD E6 03 C3 1A 02 CD E1 07 CD
+0230  E6 03 CD F7 06 C3 F6 08 21 5D 00 7E FE 20 C2 61
+0240  02 CD F9 08 2B 2B 4E 4F 20 46 49 4C 45 20 4E 41
+0250  4D 45 20 53 50 45 43 49 46 49 45 44 2B 2B 0D 0A
+0260  24 06 0B 7E FE 3F CA 6F 02 23 05 C2 63 02 C9 CD
+0270  F9 08 2B 2B 43 41 4E 27 27 54 20 55 53 45 20 57
+0280  49 4C 44 20 43 41 52 44 20 4F 50 54 49 4F 4E 53
+0290  2B 2B 0D 0A 24 AF 32 67 09 06 0A CD 45 08 DA 6A
+02A0  03 FE 01 CA 6D 03 B7 CA 99 02 FE 04 37 C8 06 01
+02B0  CD 45 08 D2 AE 02 3A 6A 09 B7 3E 15 C2 CA 02 3A
+02C0  6B 09 B7 3E 15 CA CA 02 3E 43 CD 7C 08 3A 67 09
+02D0  3C 32 67 09 FE 0A DA 99 02 CD F7 06 CD E7 08 2B
+02E0  2B 55 4E 41 42 4C 45 20 54 4F 20 52 45 43 45 49
+02F0  56 45 20 42 4C 4F 43 4B 20 2D 20 41 42 4F 52 54
+0300  49 4E 47 2B 2B 0D 0A 00 CD 3A 03 CD E7 08 2B 2B
+0310  49 4E 43 4F 4D 50 4C 45 54 45 4C 59 20 52 45 43
+0320  45 49 56 45 44 20 46 49 4C 45 20 44 45 4C 45 54
+0330  45 44 2B 2B 0D 0A 00 C3 FF 08 11 5C 00 0E 13 CD
+0340  05 00 3C C0 CD F9 08 2B 2B 43 41 4E 27 27 54 20
+0350  44 45 4C 45 54 45 20 52 45 43 45 49 56 45 44 20
+0360  46 49 4C 45 2B 2B 0D 0A 24 00 C3 AE 02 AF 32 6B
+0370  09 06 01 CD 45 08 DA 6A 03 57 06 01 CD 45 08 DA
+0380  6A 03 2F BA CA 8A 03 C3 AE 02 7A 32 63 09 0E 00
+0390  CD 11 09 21 80 00 06 01 CD 45 08 DA 6A 03 77 2C
+03A0  C2 96 03 3A 6A 09 B7 CA C8 03 51 06 01 CD 45 08
+03B0  DA 6A 03 BA C2 AE 02 3A 63 09 47 3A 64 09 B8 CA
+03C0  E0 03 3C B8 C2 61 04 C9 1E 02 06 01 CD 45 08 DA
+03D0  6A 03 1D C2 CA 03 CD 53 09 B7 CA B7 03 C3 AE 02
+03E0  CD E6 03 C3 95 02 3E 06 CD 7C 08 C9 3E 01 CD 7C
+03F0  08 3A 64 09 CD 7C 08 3A 64 09 2F CD 7C 08 C9 0E
+0400  00 CD 11 09 21 80 00 7E CD 7C 08 2C C2 07 04 C9
+0410  79 CD 7C 08 C9 CD 42 09 7A CD 7C 08 7B CD 7C 08
+0420  AF C9 06 0A CD 41 08 DA 5E 04 FE 06 C8 3A 67 09
+0430  3C 32 67 09 FE 0A D8 CD F9 08 2B 2B 43 41 4E 27
+0440  27 54 20 53 45 4E 44 20 53 45 43 54 4F 52 20 2D
+0450  20 41 42 4F 52 54 49 4E 47 2B 2B 0D 0A 24 C3 2D
+0460  04 31 AC 09 06 01 CD 45 08 D2 64 04 3E 18 CD 7C
+0470  08 06 01 CD 45 08 D2 71 04 3E 20 CD 7C 08 CD F9
+0480  08 58 4D 4F 44 45 4D 20 50 52 4F 47 52 41 4D 20
+0490  43 41 4E 43 45 4C 4C 45 44 0D 0A 24 3A 64 09 3C
+04A0  32 64 09 E5 21 00 00 7C B5 C2 AE 04 E1 C9 3E 0D
+04B0  CD 00 00 2A 65 09 23 22 65 09 CD BF 04 E1 C9 C5
+04C0  D5 E5 01 F6 FF 11 FF FF 09 13 DA C8 04 01 0A 00
+04D0  09 EB 7C B5 C4 BF 04 7B C6 30 CD 00 00 E1 D1 C1
+04E0  C9 11 5C 00 0E 11 CD 05 00 3C C8 CD F9 08 2B 2B
+04F0  46 49 4C 45 20 45 58 49 53 54 53 20 2D 20 55 53
+0500  45 20 41 20 44 49 46 46 45 52 45 4E 54 20 4E 41
+0510  4D 45 2B 2B 0D 0A 24 AF 32 68 00 32 7C 00 11 5C
+0520  00 0E 16 CD 05 00 3C C0 CD F9 08 2B 2B 45 52 52
+0530  4F 52 20 2D 20 43 41 4E 27 27 54 20 4D 41 4B 45
+0540  20 46 49 4C 45 2B 2B 0D 0A 44 69 72 65 63 74 6F
+0550  72 79 20 6D 75 73 74 20 62 65 20 66 75 6C 6C 0D
+0560  0A 24 3E 3F 32 68 00 3E FF 32 60 09 0E 11 11 5C
+0570  00 CD 05 00 3C C2 B1 05 CD F9 08 2B 2B 46 49 4C
+0580  45 20 4E 4F 54 20 46 4F 55 4E 44 2B 2B 24 0E 12
+0590  11 5C 00 CD 05 00 3C C2 B1 05 3A 60 09 6F 26 00
+05A0  54 3A 61 09 5F 29 29 29 29 29 29 29 19 22 61 09
+05B0  C9 3D E6 03 87 87 87 87 87 21 80 00 85 C6 0F 6F
+05C0  46 2B 2B 2B 3A 60 09 B7 FA CF 05 BE D2 8E 05 78
+05D0  32 61 09 7E 32 60 09 C3 8E 05 AF 32 68 00 32 7C
+05E0  00 11 5C 00 0E 0F CD 05 00 3C C2 01 06 CD F9 08
+05F0  2B 2B 4F 50 45 4E 20 45 52 52 4F 52 2B 2B 0D 0A
+0600  24 3A 5D 00 E6 80 C2 11 06 3A 5E 00 E6 80 CA 43
+0610  06 CD F9 08 2B 2B 54 48 49 53 20 46 49 4C 45 20
+0620  49 53 20 4E 4F 54 20 46 4F 52 20 44 49 53 54 52
+0630  49 42 55 54 49 4F 4E 2C 20 53 4F 52 52 59 2B 2B
+0640  0D 0A 24 CD E7 08 46 69 6C 65 20 4F 70 65 6E 20
+0650  2D 20 20 00 2A 61 09 CD 1C 07 CD E7 08 20 28 00
+0660  CD 3E 07 CD E7 08 20 48 65 78 29 20 53 65 63 74
+0670  6F 72 73 0D 0A 28 61 70 70 72 6F 78 69 6D 61 74
+0680  65 6C 79 20 00 2A 61 09 CD E0 06 E5 26 00 CD 1C
+0690  07 CD E7 08 20 6D 69 6E 73 2C 20 00 E1 7C 07 07
+06A0  6F 26 00 CD 1C 07 CD E7 08 20 73 65 63 73 20 74
+06B0  6F 20 73 65 6E 64 20 61 74 20 33 30 30 20 62 61
+06C0  75 64 29 2E 0D 0A 5B 43 6F 6E 74 72 6F 6C 2D 58
+06D0  20 74 6F 20 63 61 6E 63 65 6C 2E 5D 0D 0A 00 C9
+06E0  C5 06 08 0E 0E AF 29 7C 91 FA F1 06 67 7D F6 01
+06F0  6F 05 C2 E5 06 C1 C9 11 5C 00 0E 10 CD 05 00 3C
+0700  C0 CD F9 08 2B 2B 43 41 4E 27 27 54 20 43 4C 4F
+0710  53 45 20 46 49 4C 45 2B 2B 0D 0A 24 C5 D5 E5 01
+0720  F6 FF 11 FF FF 09 13 DA 25 07 01 0A 00 09 EB 7C
+0730  B5 C4 1C 07 7B C6 30 CD C3 08 E1 D1 C1 C9 E5 F5
+0740  7C CD D0 08 7D CD D0 08 F1 E1 C9 3A 6F 09 3D 32
+0750  6F 09 FA 62 07 2A 6D 09 11 80 00 CD 06 09 22 6D
+0760  09 C9 3A 6C 09 FE 01 37 C8 0E 00 11 AE 09 C5 D5
+0770  0E 1A CD 05 00 11 5C 00 0E 14 CD 05 00 D1 C1 B7
+0780  CA A0 07 3D CA AF 07 CD F9 08 2B 2B 46 49 4C 45
+0790  20 52 45 41 44 20 45 52 52 4F 52 2B 2B 0D 0A 24
+07A0  21 80 00 19 EB 0C 79 FE 10 CA B5 07 C3 6E 07 3E
+07B0  01 32 6C 09 79 32 6F 09 21 AE 09 22 6D 09 11 80
+07C0  00 0E 1A CD 05 00 C3 4B 07 2A 6D 09 EB 21 80 00
+07D0  CD 06 09 EB 22 6D 09 3A 6F 09 3C 32 6F 09 FE 10
+07E0  C0 3A 6F 09 B7 C8 4F 11 AE 09 E5 D5 C5 0E 1A CD
+07F0  05 00 11 5C 00 0E 15 CD 05 00 C1 D1 E1 B7 C2 1D
+0800  08 21 80 00 19 EB 0D C2 EA 07 AF 32 6F 09 21 AE
+0810  09 22 6D 09 11 80 00 0E 1A CD 05 00 C9 CD 14 08
+0820  0E 18 CD 7C 08 CD F9 08 2B 2B 45 52 52 4F 52 20
+0830  57 52 49 54 49 4E 47 20 46 49 4C 45 2B 2B 0D 0A
+0840  24 DB 08 DB 08 D5 78 87 47 11 50 C3 DB 09 E6 02
+0850  FE 02 CA 64 08 1D C2 4C 08 15 C2 4C 08 05 C2 49
+0860  08 D1 37 C9 DB 08 D1 F5 CD 1A 09 81 4F F1 B7 C9
+0870  C5 01 1B 41 0B 78 B1 C2 74 08 C1 C9 F5 CD 1A 09
+0880  81 4F DB 09 E6 01 FE 01 CA 8E 08 C3 82 08 F1 D3
+0890  08 C9 06 01 CD 45 08 FE 15 C8 FE 43 CA AB 08 FE
+08A0  18 CA 61 04 1D CA 61 04 C3 92 08 AF 32 6A 09 C9
+08B0  21 6C 00 11 5C 00 06 10 CD 08 09 AF 32 7C 00 32
+08C0  68 00 C9 C5 D5 E5 5F 0E 02 CD 05 00 E1 D1 C1 C9
+08D0  F5 1F 1F 1F 1F CD D9 08 F1 E6 0F FE 0A DA E2 08
+08E0  C6 07 C6 30 C3 C3 08 E3 7E B7 CA F4 08 CD C3 08
+08F0  23 C3 E8 08 E3 C9 C3 FF 08 D1 0E 09 CD 05 00 2A
+0900  AC 09 F9 C3 00 00 06 80 7E 12 23 13 05 C2 08 09
+0910  C9 E5 21 00 00 22 5E 09 E1 C9 F5 C5 E5 06 08 4F
+0920  2A 5E 09 79 07 4F 7D 17 6F 7C 17 67 D2 37 09 7C
+0930  EE 10 67 7D EE 21 6F 05 C2 23 09 22 5E 09 E1 C1
+0940  F1 C9 F5 AF CD 1A 09 CD 1A 09 E5 2A 5E 09 54 5D
+0950  E1 F1 C9 E5 2A 5E 09 7C B5 E1 C8 3E FF C9 00 00
+0960  00 00 00 00 00 00 00 00 00 00 43 01 00 AE 09 00
+
+
+tasm: Number of errors = 0
