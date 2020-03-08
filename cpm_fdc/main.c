@@ -440,7 +440,7 @@ main(int argc, int argv[]) {
     int track_nr, sector_nr, sec_nr, head_nr, interleave, result;
     int error, stop, alloc_unit, position, dump_disk;
     
-    printf("FDC test for floppy drive\n");
+    printf("FDC test for floppy drive V1.01\n");
     printf("Press 0 for 5.25\", double density, 40 tracks, (360k)\n");
     printf("Press 1 for 5.25\", double density, 80 tracks, (720k)\n");
     printf("Press 2 for 5.25\", high density, 80 tracks, (1.2M)\n");

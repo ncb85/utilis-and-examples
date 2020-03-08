@@ -658,7 +658,6 @@ fd_read_l1:     in REG_MSR
                 jnz fd_read_inrlo       ;try again
                 cpi 0xD0                ;exec aborted (FDC hanged)?
                 jnz 2$
-                out REG_DATA            ;take FDC out of hung
                 jmp read_status         ;and jump to status phase
 2$:             lda fdc_extraloop
                 dcr a
