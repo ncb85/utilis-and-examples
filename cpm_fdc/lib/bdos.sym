@@ -1,21 +1,0 @@
-ASxxxx Assembler V05.00  (Intel 8085), page 1.
-Hexidecimal [16-Bits]
-
-Symbol Table
-
-  2 $1                 000B R   |     .__.$$$.       =   2710 L
-    .__.ABS.       =   0000 G   |     .__.CPU.       =   0000 L
-    .__.H$L.       =   0000 L   |   2 bdos               0000 GR
-
-ASxxxx Assembler V05.00  (Intel 8085), page 2.
-Hexidecimal [16-Bits]
-
-Area Table
-
-[_CSEG]
-   0 _CODE            size    0   flags C080
-   2 SMALLC_GENERAT   size    C   flags 4D00
-   3 SMALLC_GENERAT   size    0   flags 4C40
-[_DSEG]
-   1 _DATA            size    0   flags C0C0
-

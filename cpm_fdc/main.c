@@ -14,23 +14,6 @@ extern unsigned char head_nr, track_nr, sector_nr, drive_nr;
 extern unsigned char ccr_dsr_value, mode3_value, GAP_LENGTH, GAP3_LENGTH;
 extern unsigned char CMD_FORMAT, CMD_READ, CMD_WRITE;
 
-// SmallC recognizes define "smallc", Netbeans not
-#ifndef smallc
-set_drv_type0();
-set_drv_type1();
-set_drv_type2();
-set_drv_type3();
-set_drv_type4();
-set_drv_type5();
-fd_nsc();
-fd_init();
-fd_msr();
-motor_off();
-sense_intrpt();
-fd_format();
-#endif
-// this block is here just to fool Netbeans IDE's parser
-
 /**
  * set drive parameters
  * @param p
@@ -39,30 +22,33 @@ fd_format();
 set_drive_type(char p) {
     single_sided = 0;
     switch (p) {
-        case '0': // 5.25, 360k, DD, 40 tracks
+        case '0': // 5.25, 360k, DD, 300rpm, 40 tracks
             set_drv_type0();
             break;
-        case '1': // 5.25, 720k, DD, 80 tracks
+        case '1': // 5.25, 720k, DD, 300rpm, 80 tracks
             set_drv_type1();
             break;
-        case '2': // 5.25, 1.2M, HD, 80 tracks
+        case '2': // 5.25, 1.2M, HD, 360rpm, 80 tracks
             set_drv_type2();
             break;
-        case '3': // 3.5, 1.44M, HD, 80 tracks
+        case '3': // 3.5, 720k, DD in HD drive, 300rpm, 80 tracks
             set_drv_type3();
             break;
-        case '4': // 5.25, 720k, DD in HD drive, 360rpm, 80 tracks
+        case '4': // 3.5, 1.44M, HD, 300rpm, 80 tracks
             set_drv_type4();
             break;
-        case '5': // 8, 1M, DS/DD drive, 360rpm, 77 tracks
+        case '5': // 5.25, 720k, DD in HD drive, 360rpm, 80 tracks
             set_drv_type5();
             break;
-        case '6': // 8, 500k, SS/DD drive, 360rpm, 77 tracks
-            set_drv_type5();
+        case '6': // 8, 1M, DS/DD drive, 360rpm, 77 tracks
+            set_drv_type6();
+            break;
+        case '7': // 8, 500k, SS/DD drive, 360rpm, 77 tracks
+            set_drv_type6();
             single_sided = 1;
             break;
-        case '7': // 8, 250k, SS/SD drive, 360rpm, 77 tracks
-            set_drv_type5();
+        case '8': // 8, 250k, SS/SD drive, 360rpm, 77 tracks
+            set_drv_type6();
             single_sided = 1;
             CMD_FORMAT &= 0xBF; // bit 6 of command is FM/MFM flag, set 0
             CMD_READ &= 0xBF;   // bit 6 of command is FM/MFM flag, set 0
@@ -367,7 +353,7 @@ console_gets() {
  */
 get_number() {
     int nr, i;
-    char buff[];
+    char *buff;
     nr = 0;
     i = 0;
     buff = console_gets();
@@ -436,67 +422,62 @@ get_interleave() {
  * @return
  */
 main(int argc, int argv[]) {
-    char p;
+    char p,l;
     int track_nr, sector_nr, sec_nr, head_nr, interleave, result;
     int error, stop, alloc_unit, position, dump_disk;
     
-    printf("FDC test for floppy drive V1.01\n");
-    printf("Press 0 for 5.25\", double density, 40 tracks, (360k)\n");
-    printf("Press 1 for 5.25\", double density, 80 tracks, (720k)\n");
-    printf("Press 2 for 5.25\", high density, 80 tracks, (1.2M)\n");
-    printf("Press 3 for 3.5\", high density, 80 tracks, (1.44M)\n");
-    printf("Press 4 for 5.25\", double density, HD drive, 360rpm, 80 tracks(720k)\n");
-    printf("Press 5 for 8\", double sided, double density, 360rpm, 77 tracks(1M)\n");
-    printf("Press 6 for 8\", single sided, double density, 360rpm, 77 tracks(500k)\n");
-    printf("Press 7 for 8\", single sided, single density, 360rpm, 77 tracks(250k)\n");
-    do {
-        p = console_getc();
-    } while (p < '0' || p > '7');
-    set_drive_type(p);
-    printf("\nPress 0..3 for drive number\n");
-    do {
-        p = console_getc();
-    } while (p < '0' || p > '3');
-    drv  = p - '0';
-    printf("\n");
     while(1) {
+        printf("FDC test for floppy drive V1.01\n");
+        printf("Press 0 for 5.25\", double density, 300rpm, 40 tracks, (360k)\n");
+        printf("Press 1 for 5.25\", double density, special drive, 300rpm, 80 tracks, (720k)\n");
+        printf("Press 2 for 5.25\", high density, HD drive, 360rpm, 80 tracks, (1.2M)\n");
+        printf("Press 3 for 3.5\", double density, 300rpm, 80 tracks, (720k)\n");
+        printf("Press 4 for 3.5\", high density, 300rpm, 80 tracks, (1.44M)\n");
+        printf("Press 5 for 5.25\", double density, HD drive, 360rpm, 80 tracks(720k)\n");
+        printf("Press 6 for 8\", double sided, double density, 360rpm, 77 tracks(1M)\n");
+        printf("Press 7 for 8\", single sided, double density, 360rpm, 77 tracks(500k)\n");
+        printf("Press 8 for 8\", single sided, single density, 360rpm, 77 tracks(250k)\n");
+        printf("Press x to terminate program\n");
         do {
-            printf("Menu:\ne. exit, f. format track, d. format disk, r. read sector, k. read disk\n");
-            printf("c. recalibrate (seek track 0), s. seek track, n. identify NSC PC8477B\n");
-            printf("w. write sector, i. reset FDC, a. sense interrupt, p. print buffer\n");
-            printf("l. fill buffer, m.modify buffer, o. motor off\nYour choice?\n");
             p = console_getc();
-        } while (p < 'a' || p > 'z');
+        } while (p != 'x' && (p < '0' || p > '7'));
+        if (p == 'x') {
+            printf("\nterminating..\n\n");
+            motor_off();
+            exit(1);
+        }
+        set_drive_type(p);
+        printf("\nPress 0..3 for drive number\n");
+        do {
+            p = console_getc();
+        } while (p < '0' || p > '3');
+        drv  = p - '0';
+        printf("\n");
+        l = '1'; // loop
+        while(l == '1') {
+            do {
+                printf("Menu:\ne. exit, f. format track, d. format disk, r. read sector, k. read disk\n");
+                printf("c. recalibrate (seek track 0), s. seek track, n. identify NSC PC8477B\n");
+                printf("w. write sector, i. reset FDC, a. sense interrupt, p. print buffer\n");
+                printf("l. fill buffer, m.modify buffer, o. motor off\nYour choice?\n");
+                p = console_getc();
+            } while (p < 'a' || p > 'z');
 
-        switch (p) {
-            case 'e':
-                motor_off();
-                exit(1);
-            case 'o':
-                motor_off();
-                break;
-            case 'f': 
-                printf("\nFormating track (%d sectors)\n", number_of_sctrs);
-                track_nr = get_track_nr();
-                interleave = get_interleave();
-                generate_sec_numbers(interleave);
-                if (cmd_format(track_nr, 0) == -1) {
-                    printf("\nformat track failed (head 0)\n");
+            switch (p) {
+                case 'e':
+                    l = '0'; // stop loop, exit to outer menu
                     break;
-                }
-                if (!single_sided && cmd_format(track_nr, 1) == -1) {
-                    printf("\nformat track failed (head 1)\n");
+                case 'v':
+                    //cmd_verify_disk();
                     break;
-                }
-                break;
-            case 'd':
-                printf("\nFormating disk (%d sectors per track, %d tracks)\n", number_of_sctrs, num_of_tracks);
-                interleave = get_interleave();
-                generate_sec_numbers(interleave);
-                printf("\ncurrent track:");
-                for (track_nr = 0; track_nr < num_of_tracks; track_nr++) {
-                    printf("%02d", track_nr);
-                    cmd_seek_track(track_nr);
+                case 'o':
+                    motor_off();
+                    break;
+                case 'f': 
+                    printf("\nFormating track (%d sectors)\n", number_of_sctrs);
+                    track_nr = get_track_nr();
+                    interleave = get_interleave();
+                    generate_sec_numbers(interleave);
                     if (cmd_format(track_nr, 0) == -1) {
                         printf("\nformat track failed (head 0)\n");
                         break;
@@ -505,118 +486,136 @@ main(int argc, int argv[]) {
                         printf("\nformat track failed (head 1)\n");
                         break;
                     }
-                    if (track_nr < num_of_tracks-1) {
-                        printf("%c%c", 8, 8); //2x backspace
-                    }
-                    p = console_keypress();
-                    if (p == CTRL_C) { // terminate formating?
-                        stop = 1;
-                    }
-                }
-                printf("\nrun \"read disk\" to check for bad sectors\n");
-                break;
-            case 'w':
-                printf("\nWriting sector\n");
-                track_nr = get_track_nr();
-                sector_nr = get_sector_nr();
-                head_nr = get_head_nr();
-                result = cmd_write(track_nr, sector_nr, head_nr);
-                report(result, 1);
-                break;
-            case 'r':
-                printf("\nReading sector\n");
-                track_nr = get_track_nr();
-                sector_nr = get_sector_nr();
-                head_nr = get_head_nr();
-                result = cmd_read(track_nr, sector_nr, head_nr);
-                report(result, 1);
-                break;
-            case 'k':
-                error = 0;
-                stop = 0;
-                // dump old FM disks
-                dump_disk = 0;
-                printf("\nReading disk (%d sectors per track, %d tracks)", number_of_sctrs, num_of_tracks);
-                printf("\ncurrent track:");
-                for (track_nr = 0; track_nr < num_of_tracks && stop == 0; track_nr++) {
-                    printf("%02d", track_nr);
-                    for (head_nr = 0; head_nr < (single_sided ? 1 : 2) && stop == 0; head_nr++) {
-                        for (sector_nr = 0; sector_nr< number_of_sctrs && stop == 0; sector_nr++) {
-                            // IBM counts sectors from 1, NUMBER_OF_BYTES is FM IBM -> sector_nr+1
-                            sec_nr = NUMBER_OF_BYTES == 0 ? sector_nr+1 : sector_nr;
-                            if (dump_disk) {
-                                // print sector number
-                                printf("%02d", sec_nr);
-                            }
-                            if ((result = cmd_read(track_nr, sec_nr, head_nr)) != 0) {
-                                if (error == 0) {
-                                    printf("\nerror reading sector(head):\n%02d", track_nr);
-                                }
-                                error = 1;
-                                printf(" %d(%d)", sector_nr, head_nr);
-                                alloc_unit = track_nr * number_of_sctrs * (single_sided ? 1 : 2);
-                                alloc_unit += head_nr * number_of_sctrs + sector_nr;
-                                position = alloc_unit % 8;
-                                alloc_unit /= 8;
-                                printf(", [alloc unit %d, position %d of 0..7], ", alloc_unit, position);
-                                report(result, 0);
-                                // TODO save bad sectors in an array and lock them out later
-                            }
-                            // dump old FM disks
-                            if (dump_disk) {
-                                // dump sector data
-                                dump_buffer();
-                            }
-                            // user break
-                            p = console_keypress();
-                            if (p == CTRL_C) { // terminate reading?
-                                stop = 1;
-                            }
+                    break;
+                case 'd':
+                    printf("\nFormating disk (%d sectors per track, %d tracks)\n", number_of_sctrs, num_of_tracks);
+                    interleave = get_interleave();
+                    generate_sec_numbers(interleave);
+                    printf("\ncurrent track:");
+                    for (track_nr = 0; track_nr < num_of_tracks; track_nr++) {
+                        printf("%02d", track_nr);
+                        cmd_seek_track(track_nr);
+                        if (cmd_format(track_nr, 0) == -1) {
+                            printf("\nformat track failed (head 0)\n");
+                            break;
+                        }
+                        if (!single_sided && cmd_format(track_nr, 1) == -1) {
+                            printf("\nformat track failed (head 1)\n");
+                            break;
+                        }
+                        if (track_nr < num_of_tracks-1) {
+                            printf("%c%c", 8, 8); //2x backspace
+                        }
+                        p = console_keypress();
+                        if (p == CTRL_C) { // terminate formating?
+                            stop = 1;
                         }
                     }
-                    if (!dump_disk && track_nr < num_of_tracks-1 && stop == 0) {
-                        printf("%c%c", 8, 8); //2x backspace
+                    printf("\nrun \"read disk\" to check for bad sectors\n");
+                    break;
+                case 'w':
+                    printf("\nWriting sector\n");
+                    track_nr = get_track_nr();
+                    sector_nr = get_sector_nr();
+                    head_nr = get_head_nr();
+                    result = cmd_write(track_nr, sector_nr, head_nr);
+                    report(result, 1);
+                    break;
+                case 'r':
+                    printf("\nReading sector\n");
+                    track_nr = get_track_nr();
+                    sector_nr = get_sector_nr();
+                    head_nr = get_head_nr();
+                    result = cmd_read(track_nr, sector_nr, head_nr);
+                    report(result, 1);
+                    break;
+                case 'k':
+                    error = 0;
+                    stop = 0;
+                    // dump old FM disks
+                    dump_disk = 0;
+                    printf("\nReading disk (%d sectors per track, %d tracks)", number_of_sctrs, num_of_tracks);
+                    printf("\ncurrent track:");
+                    for (track_nr = 0; track_nr < num_of_tracks && stop == 0; track_nr++) {
+                        printf("%02d", track_nr);
+                        for (head_nr = 0; head_nr < (single_sided ? 1 : 2) && stop == 0; head_nr++) {
+                            for (sector_nr = 0; sector_nr< number_of_sctrs && stop == 0; sector_nr++) {
+                                // IBM counts sectors from 1, NUMBER_OF_BYTES is FM IBM -> sector_nr+1
+                                sec_nr = NUMBER_OF_BYTES == 0 ? sector_nr+1 : sector_nr;
+                                if (dump_disk) {
+                                    // print sector number
+                                    printf("%02d", sec_nr);
+                                }
+                                if ((result = cmd_read(track_nr, sec_nr, head_nr)) != 0) {
+                                    if (error == 0) {
+                                        printf("\nerror reading sector(head):\n%02d", track_nr);
+                                    }
+                                    error = 1;
+                                    printf(" %d(%d)", sector_nr, head_nr);
+                                    alloc_unit = track_nr * number_of_sctrs * (single_sided ? 1 : 2);
+                                    alloc_unit += head_nr * number_of_sctrs + sector_nr;
+                                    position = alloc_unit % 8;
+                                    alloc_unit /= 8;
+                                    printf(", [alloc unit %d, position %d of 0..7], ", alloc_unit, position);
+                                    report(result, 0);
+                                    // TODO save bad sectors in an array and lock them out later
+                                }
+                                // dump old FM disks
+                                if (dump_disk) {
+                                    // dump sector data
+                                    dump_buffer();
+                                }
+                                // user break
+                                p = console_keypress();
+                                if (p == CTRL_C) { // terminate reading?
+                                    stop = 1;
+                                }
+                            }
+                        }
+                        if (!dump_disk && track_nr < num_of_tracks-1 && stop == 0) {
+                            printf("%c%c", 8, 8); //2x backspace
+                        }
                     }
-                }
-                printf("\n");
-                break;
-            case 'c':
-                printf("\nRecalibrate - seeking track 0\n");
-                result = cmd_recalibrate();
-                report(result, 1);
-                break;
-            case 's':
-                printf("\nSeeking track\n");
-                track_nr = get_track_nr();
-                result = cmd_seek_track(track_nr);
-                report(result, 1);
-                break;
-            case 'n':
-                result = fd_nsc();
-                printf("\nNSC command (73=OK):%02x\n", result);
-                break;
-            case 'i':
-                fd_init();
-                printf("\n");
-                break;
-            case 'a':
-                cmd_sense_interrupt();
-                printf("\n");
-                break;
-            case 'm':
-                modify_buffer();
-            case 'p':
-                dump_buffer();
-                printf("\n");
-                break;
-            case 'l':
-                fill_buffer();
-                printf("\n");
-                break;
-            default:
-                break;
+                    printf("\n");
+                    break;
+                case 'c':
+                    printf("\nRecalibrate - seeking track 0\n");
+                    result = cmd_recalibrate();
+                    report(result, 1);
+                    break;
+                case 's':
+                    printf("\nSeeking track\n");
+                    track_nr = get_track_nr();
+                    result = cmd_seek_track(track_nr);
+                    report(result, 1);
+                    break;
+                case 'n':
+                    result = fd_nsc();
+                    printf("\nNSC command (73=OK):%02x\n", result);
+                    break;
+                case 'i':
+                    fd_init();
+                    printf("\n");
+                    break;
+                case 'a':
+                    cmd_sense_interrupt();
+                    printf("\n");
+                    break;
+                case 'm':
+                    modify_buffer();
+                case 'p':
+                    dump_buffer();
+                    printf("\n");
+                    break;
+                case 'l':
+                    fill_buffer();
+                    printf("\n");
+                    break;
+                default:
+                    break;
+            }
+            result = fd_msr();
+            printf("MSR(80=OK):%02x\n", result);
         }
-        result = fd_msr();
-        printf("MSR(80=OK):%02x\n", result);
     }
 }

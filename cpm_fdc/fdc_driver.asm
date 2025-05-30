@@ -11,7 +11,7 @@
                 .globl  sector_fnr, number_of_sctrs, dbuffer, NUMBER_OF_BYTES, SECTOR_SIZE
                 .globl  ccr_dsr_value, mode3_value, gap_length, gap3_length
                 .globl  set_drv_type0, set_drv_type1, set_drv_type2, set_drv_type3
-                .globl  set_drv_type4, set_drv_type5, interpt_65, fd_exec_cmd
+                .globl  set_drv_type4, set_drv_type5, set_drv_type6, interpt_65, fd_exec_cmd
                 .globl  fdc_asm_end, CMD_READ, CMD_WRITE, CMD_FORMAT
 
 CRYSTAL         .equ 16                 ;8MHz 8085 (works fine for CPUs 4-12MHz) 
@@ -131,10 +131,11 @@ fdc_extraloop:  .db 0                   ;used in some time loops
 table_drv_typ0: .db CNF_250, 18, 40, 0x0A, 0x0C, 0xC2   ; 360kB 5.25" DD/40tracks standard drive
 table_drv_typ1: .db CNF_250, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 5.25" DD/80tracks special drive (TEAC FD-55F)
 table_drv_typ2: .db CNF_500, 26, 80, 0x0E, 0x36, 0xC2   ; 1.2MB 5.25" HD drive
-table_drv_typ3: .db CNF_500, 32, 80, 0x0E, 0x36, 0x02   ; 1.44MB 3.5" HD drive
-table_drv_typ4: .db CNF_300, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 5.25" HD drive
-table_drv_typ5: .db CNF_500, 26, 77, 0x0E, 0x36, 0xC2   ; 500(SS)/1MB(DS) or 500kB(SS) 8" DD drive
-table_drv_typ6: .db CNF_250, 26, 77, 0x07, 0x1B, 0x02   ; 250(SS)/250kB(SS) 8" SD drive
+table_drv_typ3: .db CNF_250, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 3.5"  HD drive
+table_drv_typ4: .db CNF_500, 32, 80, 0x0E, 0x36, 0x02   ; 1.44MB 3.5" HD drive
+table_drv_typ5: .db CNF_300, 18, 80, 0x0A, 0x0C, 0xC2   ; 720kB 5.25" HD drive
+table_drv_typ6: .db CNF_500, 26, 77, 0x0E, 0x36, 0xC2   ; 500(SS)/1MB(DS) or 500kB(SS) 8" DD drive
+;table_drv_typ7: .db CNF_250, 26, 77, 0x07, 0x1B, 0x02   ; 250(SS)/250kB(SS) 8" SD drive
                 ; set drive type (0-360kb, 1-720kb, 2-1.2M, 3-1.44M, 4-720kb, 5-1M)
 set_drv_type0:  lxi h, table_drv_typ0
 set_drv_type:   mov a,m
@@ -167,6 +168,8 @@ set_drv_type3:  lxi h, table_drv_typ3
 set_drv_type4:  lxi h, table_drv_typ4
                 jmp set_drv_type
 set_drv_type5:  lxi h, table_drv_typ5
+                jmp set_drv_type
+set_drv_type6:  lxi h, table_drv_typ6
                 jmp set_drv_type
                 ;
                 ; long delay, cca 3ms

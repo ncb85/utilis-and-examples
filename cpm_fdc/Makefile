@@ -1,16 +1,16 @@
-REMOVE = rm -f
-RENAME = mv
+REMOVE = /usr/bin/rm -f
+RENAME = /usr/bin/mv
 COMPILER = scc8080
 ASSEMBLER = as8085
 LINKER = aslink
-SORTHEX = sort -k1.8,1.9 -k1.4,1.7
+SORTHEX = /usr/bin/sort -k1.8,1.9 -k1.4,1.7
 PACKHEX = packihx
 HEX2COM = hex2bin -e com -c
 
 STARTADDRESS = 0x0100
 # Compiler options
-#SCCFLAGS = -t -u
-SCCFLAGS = -t
+SCCFLAGS = -t -u
+#SCCFLAGS = -t
 
 # Assembler options
 AS8085FLAGS = -l -o -s -p -g
@@ -29,19 +29,18 @@ ASM_SRC = cret.asm crun8080lib.asm fdc_driver.asm
 #lib/format.asm lib/sprintf.asm 
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
 LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
-#PATH := /cygdrive/c/Users/roman/hobby/hardware_projects/google_code/smallc_u85ls
-PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85ls
-#PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/asxv5pxx/asxmak/cygwin/exe
-PATH := $(PATH):/usr/bin
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/ncb85/Utils
+
+PATH := /home/pi/Programs/SmallC-85/smallC
+PATH := $(PATH):/home/pi/Programs/asxv5p40/asxmak/linux/build
+PATH := $(PATH):/usr/local/bin
+
 all: pre-build $(TARGET).hex post-build
 
 pre-build:
-	@echo 'Building project'
+	@echo "Building project"
 
 post-build:
-	@echo 'Build finished'
+	@echo "Build finished"
 
 $(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
 	$(LINKER) $(ASLINKFLAGS) $(TARGET) $(ASM_OBJ) $(LIB_OBJ)
@@ -59,8 +58,8 @@ $(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
 	$(ASSEMBLER) $(AS8085FLAGS) $<
 
 clean:
-	@echo 'Cleaning project'
+	@echo "Cleaning project"
 	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.lst *.rst *.lnk \
-	*.x *.com *.bin
+	*.hlr *.x *.com *.bin
 	$(REMOVE) lib/*.ihx lib/*.hex lib/*.s lib/*.mem lib/*.rel lib/*.map \
-	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.x lib/.com lib/*.bin
+	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.hlr lib/*.x lib/.com lib/*.bin
