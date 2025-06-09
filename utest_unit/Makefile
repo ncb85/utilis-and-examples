@@ -52,7 +52,7 @@ $(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
 	$(ASSEMBLER) $(AS8085FLAGS) $<
 
 # keep .s files on disk after succesfull build 
-#INTERMEDIATE: $(addsuffix .s, $(basename $(LIB_SRC)))
+INTERMEDIATE: $(addsuffix .s, $(basename $(LIB_SRC)))
 
 clean:
 	@echo "Cleaning project"

@@ -12,7 +12,7 @@
 #define SOK	"Valid"
 #define SHOBAD	"****Invalid"
 
-
+char tca1 = 'a', tcb = 'b', tcc = 'c', tcd = 'e', nc1 = 1;
 char *AOK;
 char *NOK;
 
