@@ -602,7 +602,7 @@ fd_write_l1:    in REG_MSR
                 jnz fd_write_inrlo      ;try again
                 cpi 0xD0                ;exec aborted (FDC hanged)?
                 jnz 2$
-                out REG_DATA            ;take FDC out of hung
+                ;out REG_DATA            ;take FDC out of hung (my mistake actually)
                 jmp read_status         ;and jump to status phase
 2$:             lda fdc_extraloop
                 dcr a
