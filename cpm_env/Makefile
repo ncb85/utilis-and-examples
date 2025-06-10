@@ -16,8 +16,8 @@ SCCFLAGS = -t -u
 AS8085FLAGS = -l -o -s -p -g
 
 # These settings control where the compiler will place the code and variables in memory.
-#ASLINKFLAGS = -n -i -u -o -m -b CRTSO=$(STARTADDRESS) -b LIB8080=crtsoend+$(STARTADDRESS) -b USER_GENERATED=crun8080_end+crtsoend+$(STARTADDRESS)
 ASLINKFLAGS = -n -i -u -o -m -b CRET=$(STARTADDRESS) -b LIB8080=crtsoend+$(STARTADDRESS) -b SMALLC_GENERATED=crun8080_end+crtsoend+$(STARTADDRESS)
+ASLINKFLAGS = -n -i -i+$(TARGET).ihx -u -o -m -a CRET=$(STARTADDRESS)
 
 # Target file name (without extension).
 TARGET = env
@@ -29,36 +29,40 @@ ASM_SRC = cret.asm crun8085lib.asm i2c/pcf8584.asm
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
 LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
 
-PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85ls
+PATH := /home/pi/Programs/SmallC-85/smallC
+PATH := $(PATH):/home/pi/Programs/asxv5p50/asxmak/linux/build
+PATH := $(PATH):/usr/local/bin:/usr/bin/
 
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/asxv5pxx/asxmak/cygwin/exe
-PATH := $(PATH):/usr/bin
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/ncb85/Utils
-all: pre-build $(TARGET).hex post-build
+all: pre-build $(TARGET).com post-build
 
 pre-build:
-	@echo 'Building project'
+	@echo "Building project"
 
 post-build:
-	@echo 'Build finished'
+	@echo "Build finished"
 
-$(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
-	$(LINKER) $(ASLINKFLAGS) $(TARGET) $(ASM_OBJ) $(LIB_OBJ)
+$(TARGET).com: $(LIB_OBJ) $(ASM_OBJ)
+	$(LINKER) $(ASLINKFLAGS) $(ASM_OBJ) $(LIB_OBJ)
 	$(SORTHEX) $(TARGET).ihx > $(TARGET).hex
 	$(HEX2COM) $(TARGET).hex
 
-%.rel: %.c
+%.s: %.c
 	$(COMPILER) $(SCCFLAGS) $<
+
+%.rel: %.s
 	$(ASSEMBLER) $(AS8085FLAGS) $(addsuffix .s, $(basename $<))
 
 %.rel: %.asm
 	$(ASSEMBLER) $(AS8085FLAGS) $<
 
+# keep .s files on disk after succesfull build 
+INTERMEDIATE: $(addsuffix .s, $(basename $(LIB_SRC)))
+
 clean:
-	@echo 'Cleaning project'
+	@echo "Cleaning project"
 	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.lst *.rst *.lnk \
-	*.x *.com *.bin
+	*.hlr *.x *.com *.bin
 	$(REMOVE) lib/*.ihx lib/*.hex lib/*.s lib/*.mem lib/*.rel lib/*.map \
-	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.x lib/.com lib/*.bin
+	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.hlr lib/*.x lib/.com lib/*.bin
 	$(REMOVE) i2c/*.ihx i2c/*.hex i2c/*.s i2c/*.mem i2c/*.rel i2c/*.map \
-	i2c/*.sym i2c/*.lst i2c/*.rst i2c/*.lnk i2c/*.x i2c/.com i2c/*.bin
+	i2c/*.sym i2c/*.lst i2c/*.rst i2c/*.lnk i2c/*.hlr i2c/*.x i2c/.com i2c/*.bin

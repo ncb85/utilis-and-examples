@@ -8,7 +8,7 @@
 ;               Ron Cain                             *
 ;                                                    *
 ;*****************************************************
-;
+        .8085x                          ; 8085 CPU with undocumented instructions
         .module LIB8080
         .area   LIB8080   (REL,CON)   ;program area CODE1 is RELOCATABLE
         .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
