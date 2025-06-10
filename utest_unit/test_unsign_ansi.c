@@ -78,10 +78,11 @@ testUSum() {
     for (i=0; i<255; i++) {
         sum += i;
     }
+    sum += 255;
     puts("Testing sum for 100+SUM(0:255)=33640 ");
     decimal_number_to_str(sum, 0);
     puts(result);
-    if (sum != 33385) {
+    if (sum != 33640) {
         writeNOK();
     } else {
         writeOK();
