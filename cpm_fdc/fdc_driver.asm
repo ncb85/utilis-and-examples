@@ -2,7 +2,7 @@
                 ; uses no DMAs, no IRQs and TC pin is not serviced
                 ; all data flow control is done via FDC internal registers
                 .module FDC
-                .area   FDC (CON)
+                .area   FDC (CSEG,REL,CON)
                 .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
                 .nlist  (pag)
                 .globl  fd_nsc, fd_msr, fd_init, sense_intrpt, fd_format, motor_off

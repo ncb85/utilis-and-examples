@@ -1,6 +1,6 @@
 ;       Run time start off for Small C.
         .module CRET
-        .area   CRET (REL,CON)
+        .area   CRET (CSEG)
         .list   (err, loc, bin, eqt, cyc, lin, src, lst, md)
         .nlist  (pag)
         .globl  crtsoend
