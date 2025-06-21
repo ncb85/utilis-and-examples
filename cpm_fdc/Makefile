@@ -21,8 +21,8 @@ AS8085FLAGS = -l -o -s -p -g
 # These settings control where the linker will place the code and variables in memory.
 ASLINKFLAGS = -i -i+$(TARGET).ihx -m -u -a CRET=$(STARTADDRESS)
 
-LIB_SRC = main.c lib/bdos.c lib/chio8080.c lib/arglist.c lib/charclass.c lib/io8080.c \
-	  lib/bdos1.c lib/exit.c lib/printf.c lib/itoa.c lib/strlen.c lib/atoi.c \
+LIB_SRC = main.c format.c lib/bdos.c lib/chio8080.c lib/arglist.c lib/charclass.c \
+	  lib/io8080.c lib/bdos1.c lib/exit.c lib/printf.c lib/itoa.c lib/strlen.c lib/atoi.c \
 	  lib/reverse.c lib/scanf.c lib/scanf1.c
 ASM_SRC = cret.asm crun8080lib.asm fdc_driver.asm
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))

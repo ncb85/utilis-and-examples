@@ -4,10 +4,9 @@
  */
 #include <stdio.h>
 
-#define CTRL_C                  0x03
-
 char user_response[82], drv;
 unsigned int num_of_tracks, single_sided;
+extern int alloc_unit_address_size;
 extern unsigned char status_reg_0, status_reg_1, status_reg_2, status_reg_3;
 extern unsigned char number_of_sctrs, NUMBER_OF_BYTES, SECTOR_SIZE, sector_fnr[], dbuffer[];
 extern unsigned char head_nr, track_nr, sector_nr, drive_nr;
@@ -21,9 +20,11 @@ extern unsigned char CMD_FORMAT, CMD_READ, CMD_WRITE;
  */
 set_drive_type(char p) {
     single_sided = 0;
+    alloc_unit_address_size = 2; // more than 255 alloc.units on disk (16 bit address)
     switch (p) {
         case '0': // 5.25, 360k, DD, 300rpm, 40 tracks
             set_drv_type0();
+            alloc_unit_address_size = 1; // less than 255 alloc.units on disk (180 allo.units, 8 bit address)
             break;
         case '1': // 5.25, 720k, DD, 300rpm, 80 tracks
             set_drv_type1();
@@ -224,7 +225,7 @@ modify_buffer() {
     do {
         printf("\naddress? (0-255)\n");
         address = get_number();
-    } while (address < 0 || address > 255);   
+    } while (address < 0 || address > 255);
     do {
         printf("\nvalue (%d)(%xh)? (0-255)\n", dbuffer[address], dbuffer[address]);
         value = get_number();
@@ -408,23 +409,14 @@ get_head_nr() {
     return head_nr;
 }
 
-get_interleave() {
-    int interleave;
-    do {
-        printf("\ninterleave? (1-9) (recom. 1.44MB/3, 1.2MB/3, 360kB/4)\n");
-        interleave = get_number();
-    } while (interleave < 1 || interleave > 9);
-    return interleave;
-}
-
 /**
  * main routine
  * @return
  */
 main(int argc, int argv[]) {
     char p,l;
-    int track_nr, sector_nr, sec_nr, head_nr, interleave, result;
-    int error, stop, alloc_unit, position, dump_disk;
+    int track_nr, sector_nr, sec_nr, head_nr, result;
+    int error, stop, alloc_unit, position;
     
     while(1) {
         printf("FDC test for floppy drive V1.01\n");
@@ -473,45 +465,11 @@ main(int argc, int argv[]) {
                 case 'o':
                     motor_off();
                     break;
-                case 'f': 
-                    printf("\nFormating track (%d sectors)\n", number_of_sctrs);
-                    track_nr = get_track_nr();
-                    interleave = get_interleave();
-                    generate_sec_numbers(interleave);
-                    if (cmd_format(track_nr, 0) == -1) {
-                        printf("\nformat track failed (head 0)\n");
-                        break;
-                    }
-                    if (!single_sided && cmd_format(track_nr, 1) == -1) {
-                        printf("\nformat track failed (head 1)\n");
-                        break;
-                    }
+                case 'f':
+                    format_track();
                     break;
                 case 'd':
-                    printf("\nFormating disk (%d sectors per track, %d tracks)\n", number_of_sctrs, num_of_tracks);
-                    interleave = get_interleave();
-                    generate_sec_numbers(interleave);
-                    printf("\ncurrent track:");
-                    for (track_nr = 0; track_nr < num_of_tracks; track_nr++) {
-                        printf("%02d", track_nr);
-                        cmd_seek_track(track_nr);
-                        if (cmd_format(track_nr, 0) == -1) {
-                            printf("\nformat track failed (head 0)\n");
-                            break;
-                        }
-                        if (!single_sided && cmd_format(track_nr, 1) == -1) {
-                            printf("\nformat track failed (head 1)\n");
-                            break;
-                        }
-                        if (track_nr < num_of_tracks-1) {
-                            printf("%c%c", 8, 8); //2x backspace
-                        }
-                        p = console_keypress();
-                        if (p == CTRL_C) { // terminate formating?
-                            stop = 1;
-                        }
-                    }
-                    printf("\nrun \"read disk\" to check for bad sectors\n");
+                    format_disk();
                     break;
                 case 'w':
                     printf("\nWriting sector\n");
@@ -530,53 +488,7 @@ main(int argc, int argv[]) {
                     report(result, 1);
                     break;
                 case 'k':
-                    error = 0;
-                    stop = 0;
-                    // dump old FM disks
-                    dump_disk = 0;
-                    printf("\nReading disk (%d sectors per track, %d tracks)", number_of_sctrs, num_of_tracks);
-                    printf("\ncurrent track:");
-                    for (track_nr = 0; track_nr < num_of_tracks && stop == 0; track_nr++) {
-                        printf("%02d", track_nr);
-                        for (head_nr = 0; head_nr < (single_sided ? 1 : 2) && stop == 0; head_nr++) {
-                            for (sector_nr = 0; sector_nr< number_of_sctrs && stop == 0; sector_nr++) {
-                                // IBM counts sectors from 1, NUMBER_OF_BYTES is FM IBM -> sector_nr+1
-                                sec_nr = NUMBER_OF_BYTES == 0 ? sector_nr+1 : sector_nr;
-                                if (dump_disk) {
-                                    // print sector number
-                                    printf("%02d", sec_nr);
-                                }
-                                if ((result = cmd_read(track_nr, sec_nr, head_nr)) != 0) {
-                                    if (error == 0) {
-                                        printf("\nerror reading sector(head):\n%02d", track_nr);
-                                    }
-                                    error = 1;
-                                    printf(" %d(%d)", sector_nr, head_nr);
-                                    alloc_unit = track_nr * number_of_sctrs * (single_sided ? 1 : 2);
-                                    alloc_unit += head_nr * number_of_sctrs + sector_nr;
-                                    position = alloc_unit % 8;
-                                    alloc_unit /= 8;
-                                    printf(", [alloc unit %d, position %d of 0..7], ", alloc_unit, position);
-                                    report(result, 0);
-                                    // TODO save bad sectors in an array and lock them out later
-                                }
-                                // dump old FM disks
-                                if (dump_disk) {
-                                    // dump sector data
-                                    dump_buffer();
-                                }
-                                // user break
-                                p = console_keypress();
-                                if (p == CTRL_C) { // terminate reading?
-                                    stop = 1;
-                                }
-                            }
-                        }
-                        if (!dump_disk && track_nr < num_of_tracks-1 && stop == 0) {
-                            printf("%c%c", 8, 8); //2x backspace
-                        }
-                    }
-                    printf("\n");
+                    find_bad();
                     break;
                 case 'c':
                     printf("\nRecalibrate - seeking track 0\n");
