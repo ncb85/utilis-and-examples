@@ -419,7 +419,7 @@ main(int argc, int argv[]) {
     int error, stop, alloc_unit, position;
     
     while(1) {
-        printf("FDC test for floppy drive V1.01\n");
+        printf("FDC test for floppy drive V1.03\n");
         printf("Press 0 for 5.25\", double density, 300rpm, 40 tracks, (360k)\n");
         printf("Press 1 for 5.25\", double density, special drive, 300rpm, 80 tracks, (720k)\n");
         printf("Press 2 for 5.25\", high density, HD drive, 360rpm, 80 tracks, (1.2M)\n");

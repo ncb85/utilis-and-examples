@@ -112,6 +112,9 @@ lock_out() {
                 putchar('\n');
             }
             dbuffer[16 + i*alloc_unit_address_size] = bad_aloc_units[i]; // alloc unit address is one or two bytes
+            if (alloc_unit_address_size > 1) {
+                dbuffer[16 + 1 + i*alloc_unit_address_size] = bad_aloc_units[i] / 256; // a.u. address higher byte
+            }
 	    }
         // file length (in logical 128byte sector count) bad_aloc_unit_count * 2kB units size / 0.125kB (e.g. *8)
         file_length = bad_aloc_unit_count * 16;
@@ -156,10 +159,11 @@ find_bad() {
                     alloc_unit += head_nr * number_of_sctrs + sector_nr;
                     position = alloc_unit % 8;
                     alloc_unit /= 8;
-                    // remeber bad sectors and lock them out later
+                    // remember bad sectors and lock them out later
                     if (bad_aloc_unit_count < MAX_BAD_ALLOC_UNITS) {
-                        bad_aloc_units[bad_aloc_unit_count++] =  alloc_unit;
+                        bad_aloc_units[bad_aloc_unit_count] = alloc_unit;
                     }
+                    bad_aloc_unit_count++;
                     printf(", [alloc unit %d, position %d of 0..7], ", alloc_unit, position);
                     report(result, 0);
                 }
@@ -175,7 +179,7 @@ find_bad() {
         }
     }
     printf("\n");
-    if (bad_aloc_unit_count <= MAX_BAD_ALLOC_UNITS) {
+    if (bad_aloc_unit_count > 0 && bad_aloc_unit_count <= MAX_BAD_ALLOC_UNITS) {
         lock_out(bad_aloc_unit_count);
     }
 }
