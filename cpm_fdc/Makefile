@@ -1,3 +1,6 @@
+# Include user-specific settings.
+-include settings.mk
+
 REMOVE = rm -f
 RENAME = mv
 COMPILER = scc8080
@@ -28,11 +31,7 @@ ASM_SRC = cret.asm crun8080lib.asm fdc_driver.asm
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
 LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
 
-PATH := /home/pi/Programs/SmallC-85/smallC
-PATH := $(PATH):/home/pi/Programs/asxv5p50/asxmak/linux/build
-PATH := $(PATH):/usr/local/bin:/usr/bin
-
-all: pre-build $(TARGET).hex post-build
+build: pre-build $(TARGET).hex post-build
 
 pre-build:
 	@echo "Building project"
