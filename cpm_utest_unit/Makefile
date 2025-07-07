@@ -26,11 +26,6 @@ LIB_SRC = main.c test.c test_unsign_ansi.c test_struct.c test_pointer.c test_exp
 ASM_SRC = cret.asm crun8080lib.asm
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
 LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
-PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85ls
-#PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/asxv5pxx/asxmak/cygwin/exe
-PATH := $(PATH):/usr/bin
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/ncb85/Utils
 	
 all: pre-build $(TARGET).com post-build
 
@@ -54,8 +49,9 @@ $(TARGET).com: $(LIB_OBJ) $(ASM_OBJ)
 
 clean:
 	@echo 'Cleaning project'
-	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.lst *.rst *.lnk *.com
-	$(REMOVE) lib/*.ihx lib/*.hex lib/*.s lib/*.mem lib/*.rel lib/*.map lib/*.sym lib/*.lst lib/*.rst lib/*.lnk
+	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.hlr *.lst *.rst *.lnk *.com
+	$(REMOVE) lib/*.ihx lib/*.hex lib/*.s lib/*.mem lib/*.rel lib/*.map lib/*.sym \
+	lib/*.hlr lib/*.lst lib/*.rst lib/*.lnk
 
 env:
 	@echo PATH = $(PATH)

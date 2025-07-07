@@ -30,11 +30,6 @@ ASM_SRC = cret.asm crun8085lib.asm i2c/pcf8584.asm i2c/lcd.asm
 ASM_OBJ = $(addsuffix .rel, $(basename $(ASM_SRC)))
 LIB_OBJ = $(addsuffix .rel, $(basename $(LIB_SRC)))
 
-PATH := /cygdrive/d/Users/roman/hobby/hardware_projects/smallc_rep/smallc_u85ls
-
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/asxv5pxx/asxmak/cygwin/exe
-PATH := $(PATH):/usr/bin
-PATH := $(PATH):/cygdrive/d/users/roman/hobby/hardware_projects/8085/ncb85/Utils
 all: pre-build $(TARGET).hex post-build
 
 pre-build:
@@ -59,8 +54,8 @@ $(TARGET).hex: $(LIB_OBJ) $(ASM_OBJ)
 clean:
 	@echo 'Cleaning project'
 	$(REMOVE) *.ihx *.hex *.s *.mem *.rel *.map *.sym *.lst *.rst *.lnk \
-	*.x *.com *.bin
+	*.hlr *.x *.com *.bin
 	$(REMOVE) lib/*.ihx lib/*.hex lib/*.s lib/*.mem lib/*.rel lib/*.map \
-	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.x lib/.com lib/*.bin
+	lib/*.sym lib/*.lst lib/*.rst lib/*.lnk lib/*.hlr lib/*.x lib/.com lib/*.bin
 	$(REMOVE) i2c/*.ihx i2c/*.hex i2c/*.s i2c/*.mem i2c/*.rel i2c/*.map \
-	i2c/*.sym i2c/*.lst i2c/*.rst i2c/*.lnk i2c/*.x i2c/.com i2c/*.bin
+	i2c/*.sym i2c/*.lst i2c/*.rst i2c/*.lnk i2c/*.hlr i2c/*.x i2c/.com i2c/*.bin
